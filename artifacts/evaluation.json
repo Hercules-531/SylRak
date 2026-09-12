@@ -1,0 +1,226 @@
+{
+  "evaluated_images": 31,
+  "exact_images": 5,
+  "exact_accuracy": 0.16129032258064516,
+  "character_error_rate": 0.24054982817869416,
+  "method": "Best OCR candidate per manually transcribed principal plate; post-inference comparison only.",
+  "rows": [
+    {
+      "sample_id": "sample-001",
+      "ground_truth": "KL01BN8858",
+      "best_reading": "KL01BN885",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-002",
+      "ground_truth": "KL01CR1247",
+      "best_reading": "KLO1CR12",
+      "edit_distance": 3,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-003",
+      "ground_truth": "KL22Q0952",
+      "best_reading": "KL00952",
+      "edit_distance": 3,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-005",
+      "ground_truth": "KL01BM4629",
+      "best_reading": "KLOMBM462",
+      "edit_distance": 3,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-006",
+      "ground_truth": "KL01CE2893",
+      "best_reading": "KLO122889",
+      "edit_distance": 5,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-007",
+      "ground_truth": "KL34B9983",
+      "best_reading": "KL348998",
+      "edit_distance": 2,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-008",
+      "ground_truth": "KL22H6948",
+      "best_reading": "KL22698",
+      "edit_distance": 2,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-010",
+      "ground_truth": "KL22K6435",
+      "best_reading": "KL22K6235",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-012",
+      "ground_truth": "KL07BX7698",
+      "best_reading": "KL07769",
+      "edit_distance": 3,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-023",
+      "ground_truth": "KL1BU888",
+      "best_reading": "KLIBU888",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-025",
+      "ground_truth": "KL07CV4477",
+      "best_reading": "KL07CV447",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-026",
+      "ground_truth": "KL26C8642",
+      "best_reading": "KL26C8642",
+      "edit_distance": 0,
+      "exact": true
+    },
+    {
+      "sample_id": "sample-033",
+      "ground_truth": "KL02BT6708",
+      "best_reading": "KL028T6",
+      "edit_distance": 4,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-034",
+      "ground_truth": "KL46X6131",
+      "best_reading": "KLX613461",
+      "edit_distance": 4,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-037",
+      "ground_truth": "KL82A0726",
+      "best_reading": "KL82A0726",
+      "edit_distance": 0,
+      "exact": true
+    },
+    {
+      "sample_id": "sample-038",
+      "ground_truth": "KL04Y4664",
+      "best_reading": "IL04Y4664",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-041",
+      "ground_truth": "KL803148",
+      "best_reading": "KL8O3148",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-042",
+      "ground_truth": "KL24C6495",
+      "best_reading": "KL24C6495",
+      "edit_distance": 0,
+      "exact": true
+    },
+    {
+      "sample_id": "sample-043",
+      "ground_truth": "KL02AF9198",
+      "best_reading": "KLO2AF9198",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-045",
+      "ground_truth": "KL25E8801",
+      "best_reading": "A735NSS67",
+      "edit_distance": 8,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-046",
+      "ground_truth": "KL02AU1722",
+      "best_reading": "K0022172",
+      "edit_distance": 4,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-047",
+      "ground_truth": "KL02BC5566",
+      "best_reading": "KL665602",
+      "edit_distance": 7,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-048",
+      "ground_truth": "KL02BB1809",
+      "best_reading": "KLO2BB1809",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-050",
+      "ground_truth": "KL25P6583",
+      "best_reading": "KL25P6583",
+      "edit_distance": 0,
+      "exact": true
+    },
+    {
+      "sample_id": "sample-051",
+      "ground_truth": "KL25P9099",
+      "best_reading": "AL25P9099",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-052",
+      "ground_truth": "KL02BN7208",
+      "best_reading": "KL028N72",
+      "edit_distance": 3,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-054",
+      "ground_truth": "KL01BB6697",
+      "best_reading": "K40IB6697",
+      "edit_distance": 3,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-055",
+      "ground_truth": "KL61C9123",
+      "best_reading": "KL611223",
+      "edit_distance": 3,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-057",
+      "ground_truth": "KL25J2540",
+      "best_reading": "KL25J2540",
+      "edit_distance": 0,
+      "exact": true
+    },
+    {
+      "sample_id": "sample-059",
+      "ground_truth": "KL02AV0598",
+      "best_reading": "KL02AV598",
+      "edit_distance": 1,
+      "exact": false
+    },
+    {
+      "sample_id": "sample-060",
+      "ground_truth": "KL06K5458",
+      "best_reading": "KL0645O",
+      "edit_distance": 3,
+      "exact": false
+    }
+  ]
+}

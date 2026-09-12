@@ -1,0 +1,21 @@
+{
+  "source": "https://build.protomaps.com/20260911.pmtiles",
+  "build": {
+    "key": "20260911.pmtiles",
+    "size": 137928448540,
+    "md5sum": "cx5gttp/Sh4a1zLot9BDHw==",
+    "b3sum": "e7d6f27489d7ed2975149293bfd223972b1c5d6253eca9fe93afa68f1a19f74d",
+    "uploaded": "2026-09-11T09:06:35.685Z",
+    "version": "4.15.2"
+  },
+  "bbox": [
+    77.17,
+    28.56,
+    77.34,
+    28.69
+  ],
+  "attribution": "\u00a9 OpenStreetMap contributors \u00b7 Protomaps",
+  "license": "ODbL-1.0 produced work",
+  "cli_version": "1.31.2",
+  "sha256": "68769ed4bc345ab697c1c31870d49f3040b8265d558c08c12d105ee86fb53e75"
+}
