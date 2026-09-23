@@ -1,4 +1,4 @@
-import asyncio, hashlib, json, secrets, time, shutil, math
+import asyncio, hashlib, json, time, shutil, math
 from contextlib import asynccontextmanager
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
@@ -7,13 +7,15 @@ from fastapi import FastAPI, Depends, HTTPException, Request, Response, UploadFi
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import select, func, or_, delete
+from sqlalchemy import select, func, or_, delete, case
 from PIL import Image, UnidentifiedImageError
 from .config import *
 from .db import *
-from .auth import current_user, admin_user, verify_password, audit
+from .auth import current_user, admin_user, audit
 from .service import *
 from .seed import seed, sample_manifest, target_sample
+from .extensions import router as extension_router, decorated_alert, alert_sort
+from .review_score import theft_review
 
 pool=None
 background=set()
@@ -46,6 +48,7 @@ async def process_job(job_id):
                 s.add(evidence);s.flush()
                 data={k:d.get(k) for k in ['raw_plate','ocr_confidence','vehicle_confidence','plate_confidence','vehicle_type','color']}
                 data.update(event_key=f'job:{job.id}:{i}',track_id=f'image:{result["input_sha256"][:24]}:{i}:{int(run.state["clock"])}',camera_id=job.camera_id,run_id=run.id,observed_at=run.state['clock'],evidence_id=evidence.id,source_kind='real_inference',details={'vehicle_box':d['vehicle_box'],'plate_box':d['plate_box'],'character_scores':d['character_scores'],'confidence_origin':'model output','camera_location_simulated':True,'source_sample_id':job.sample_id,'inference_seconds':result['duration_seconds']})
+                data['details']['ocr_alternatives']=d.get('ocr_alternatives',[])
                 o,_=record_observation(s,data);ids.append(o.id)
                 if o.status=='accepted' and o.plate==run.state.get('target_plate') and job.camera_id=='C01' and not run.state.get('target_observation_id'):
                     run.state={**run.state,'target_observation_id':o.id}
@@ -97,11 +100,10 @@ async def replay_loop():
 def purge_expired(s):
     cutoff=time.time()-RETENTION_DAYS*86400
     # Retention uses ingestion time, never the historical scenario clock.
-    old_ids=list(s.scalars(select(Observation.id).where(Observation.ingested_at<cutoff)))
-    if old_ids:
-        s.execute(delete(Alert).where(or_(Alert.observation_id.in_(old_ids),Alert.latest_observation_id.in_(old_ids))))
-        s.execute(delete(Association).where(Association.observation_id.in_(old_ids)))
-        s.execute(delete(Observation).where(Observation.id.in_(old_ids)))
+    old_ids=select(Observation.id).where(Observation.ingested_at<cutoff)
+    s.execute(delete(Alert).where(or_(Alert.observation_id.in_(old_ids),Alert.latest_observation_id.in_(old_ids))))
+    s.execute(delete(Association).where(Association.observation_id.in_(old_ids)))
+    s.execute(delete(Observation).where(Observation.ingested_at<cutoff))
     for e in s.scalars(select(Evidence).where(Evidence.created_at<cutoff,Evidence.bundled==False)):
         if s.scalar(select(func.count()).select_from(Observation).where(Observation.evidence_id==e.id)):continue
         for name in ['original_path','plate_path','vehicle_path']:
@@ -123,7 +125,9 @@ async def lifespan(app):
     global pool
     migrate()
     with Session.begin() as s:
-        seed(s);purge_expired(s)
+        purge_expired(s);seed(s)
+        if s.scalar(select(func.count()).select_from(Observation).where(Observation.run_id==get_run(s).id))<=12:
+            seed(s,reset=True)
         run=get_run(s)
         if run.state['status']=='running':run.state={**run.state,'status':'paused'}
         for job in s.scalars(select(Job).where(Job.status.in_(['queued','running']))):job.status='failed';job.error='Server restarted. Submit the image again.'
@@ -138,42 +142,25 @@ app=FastAPI(title='SylRak Delhi',version='0.1.0',lifespan=lifespan)
 @app.middleware('http')
 async def local_origin(request,call_next):
     origin=request.headers.get('origin')
-    if request.method not in ['GET','HEAD','OPTIONS'] and origin and origin not in ['http://127.0.0.1:5173','http://localhost:5173','http://127.0.0.1:8000','http://localhost:8000']:
+    if request.method not in ['GET','HEAD','OPTIONS'] and origin and origin not in ['http://127.0.0.1:5173','http://localhost:5173','http://127.0.0.1:8000','http://localhost:8000','http://127.0.0.1:8010','http://localhost:8010']:
         return Response('Origin not allowed',403)
     response=await call_next(request)
     response.headers['X-Content-Type-Options']='nosniff';response.headers['Referrer-Policy']='same-origin'
     return response
 
-class LoginInput(BaseModel):
-    username: str=Field(max_length=40)
-    password: str=Field(max_length=200)
-attempts={}
-@app.post('/api/v1/auth/login')
-def login(body:LoginInput,response:Response,request:Request):
-    key=(request.client.host,body.username);recent=[t for t in attempts.get(key,[]) if t>time.time()-60]
-    if len(recent)>=10:raise HTTPException(429,'Too many attempts. Try again in one minute.')
-    with Session.begin() as s:
-        user=s.get(User,body.username)
-        if not user or not verify_password(body.password,user.password_hash):
-            attempts[key]=recent+[time.time()];raise HTTPException(401,'Username or password is incorrect.')
-        token=secrets.token_urlsafe(32);s.add(LoginSession(token=hashlib.sha256(token.encode()).hexdigest(),user_id=user.id,expires_at=time.time()+8*3600))
-        response.set_cookie('sylrak_session',token,httponly=True,samesite='strict',max_age=8*3600)
-        d={'id':user.id,'name':user.name,'role':user.role};audit(s,d,'login',user.id);return d
 @app.get('/api/v1/auth/me')
 def me(user=Depends(current_user)):return user
-@app.post('/api/v1/auth/logout')
-def logout(request:Request,response:Response,user=Depends(current_user)):
-    with Session.begin() as s:s.execute(delete(LoginSession).where(LoginSession.token==hashlib.sha256(request.cookies.get('sylrak_session','').encode()).hexdigest()))
-    response.delete_cookie('sylrak_session');return {'ok':True}
 @app.get('/api/v1/health')
-def health():return {'status':'ok','models':model_state,'map_ready':(ASSETS/'map'/'delhi.pmtiles').exists(),'offline_capable':True}
+def health():return {'status':'ok','service':'sylrak','version':'0.2.0','models':model_state,'map_ready':(ASSETS/'map'/'delhi.pmtiles').exists(),'offline_capable':True}
 
 @app.get('/api/v1/snapshot')
 def snapshot(user=Depends(current_user)):
     with Session() as s:
-        run=get_run(s);alerts=list(s.scalars(select(Alert).where(Alert.run_id==run.id).order_by(Alert.updated_at.desc())))
+        run=get_run(s);alerts=sorted(s.scalars(select(Alert).where(Alert.run_id==run.id)),key=alert_sort)
+        visible=[decorated_alert(s,a,user) for a in alerts if a.status!='dismissed']
+        visible=[a for a in visible if not a['notification']['muted']]
         obs=list(s.scalars(select(Observation).where(Observation.run_id==run.id).order_by(Observation.observed_at.desc()).limit(12)))
-        return {'run':{'id':run.id,**run.state},'cameras':[row_dict(c) for c in s.scalars(select(Camera).order_by(Camera.id))],'recent':[observation_dict(s,o) for o in obs],'alerts':[alert_dict(s,a) for a in alerts if a.status!='dismissed'][:12],'summary':{'passages':s.scalar(select(func.count()).select_from(Observation).where(Observation.run_id==run.id)),'identified':s.scalar(select(func.count(func.distinct(Observation.vehicle_id))).where(Observation.run_id==run.id,Observation.status=='accepted')),'active_alerts':sum(a.status!='dismissed' for a in alerts),'review_required':s.scalar(select(func.count()).select_from(Observation).where(Observation.run_id==run.id,Observation.status.in_(['possible','conflict']))),'tracked':s.scalar(select(func.count(func.distinct(Observation.vehicle_id))).where(Observation.run_id==run.id,Observation.status=='accepted',Observation.observed_at>=run.state['clock']-900))},'models':model_state}
+        return {'run':{'id':run.id,**run.state},'cameras':[row_dict(c) for c in s.scalars(select(Camera).order_by(Camera.id))],'recent':[observation_dict(s,o) for o in obs],'alerts':visible[:12],'summary':{'passages':s.scalar(select(func.count()).select_from(Observation).where(Observation.run_id==run.id)),'identified':s.scalar(select(func.count(func.distinct(Observation.vehicle_id))).where(Observation.run_id==run.id,Observation.status=='accepted')),'active_alerts':len(visible),'review_required':s.scalar(select(func.count()).select_from(Observation).where(Observation.run_id==run.id,Observation.status.in_(['possible','conflict']))),'tracked':s.scalar(select(func.count(func.distinct(Observation.vehicle_id))).where(Observation.run_id==run.id,Observation.status=='accepted',Observation.observed_at>=run.state['clock']-900))},'models':model_state}
 
 @app.get('/api/v1/cameras')
 def cameras(user=Depends(current_user)):
@@ -196,7 +183,7 @@ def camera_update(camera_id:str,body:CameraUpdate,user=Depends(admin_user)):
         audit(s,user,'camera.status',camera_id,body.model_dump());emit(s,'camera.updated',{'id':camera_id});return row_dict(c)
 
 @app.get('/api/v1/observations')
-def observations(plate:str='',camera:str='',vehicle_type:str='',color:str='',size_class:str='',make_model:str='',body_style:str='',status:str='',watchlist_status:str='',alert_status:str='',from_time:float|None=None,to_time:float|None=None,run_id:str='',offset:int=Query(0,ge=0),limit:int=Query(30,ge=1,le=100),user=Depends(current_user)):
+def observations(plate:str='',camera:str='',vehicle_type:str='',color:str='',size_class:str='',make_model:str='',body_style:str='',status:str='',watchlist_status:str='',alert_status:str='',from_time:float|None=None,to_time:float|None=None,run_id:str='',include_review:bool=False,offset:int=Query(0,ge=0),limit:int=Query(30,ge=1,le=100),user=Depends(current_user)):
     with Session.begin() as s:
         run=get_run(s);q=select(Observation)
         if run_id:q=q.where(Observation.run_id==(run.id if run_id=='current' else run_id))
@@ -216,9 +203,11 @@ def observations(plate:str='',camera:str='',vehicle_type:str='',color:str='',siz
         if alert_status:
             q=q.where(select(Alert.id).where(Alert.status==alert_status,Alert.run_id==Observation.run_id,or_(Alert.vehicle_id==Observation.vehicle_id,Alert.observation_id==Observation.id,Alert.latest_observation_id==Observation.id)).exists())
         total=s.scalar(select(func.count()).select_from(q.subquery()))
-        items=list(s.scalars(q.order_by(Observation.observed_at.desc(),Observation.id).offset(offset).limit(limit)))
+        ordering=[Observation.observed_at.desc(),Observation.id]
+        if include_review:ordering=[case((Observation.status=='accepted',0),else_=1),Observation.ocr_confidence.desc(),*ordering]
+        items=list(s.scalars(q.order_by(*ordering).offset(offset).limit(limit)))
         audit(s,user,'search','observations',{'plate':plate,'camera':camera,'vehicle_type':vehicle_type,'color':color,'size_class':size_class,'make_model':make_model,'from':from_time,'to':to_time,'results':total})
-        return {'items':[observation_dict(s,o) for o in items],'total':total,'offset':offset,'limit':limit}
+        return {'items':[{**observation_dict(s,o),**({'theft_review':theft_review(s,o)} if include_review else {})} for o in items],'total':total,'offset':offset,'limit':limit}
 @app.get('/api/v1/observations/{observation_id}')
 def observation_detail(observation_id:str,user=Depends(current_user)):
     with Session.begin() as s:
@@ -268,7 +257,7 @@ def vehicle_detail(vehicle_id:str,run_id:str='current',from_time:float|None=None
         audit(s,user,'investigation.view',vehicle_id)
         latest=next((o for o in reversed(items) if o.status=='accepted'),items[-1] if items else None)
         attributes={'vehicle_type':latest.vehicle_type,'color':latest.color,**{k:latest.details.get(k,'unknown') for k in ['make_model','size_class','body_style']}} if latest else {}
-        return {**vehicle_dict(s,v,selected_run or None),'attributes':attributes,'observations':[observation_dict(s,o) for o in items],'alerts':[alert_dict(s,a) for a in alerts],'runs':[{'id':r.id,'active':r.active,'created_at':r.created_at} for r in available],'selected_run_id':selected_run}
+        return {**vehicle_dict(s,v,selected_run or None),'attributes':attributes,'theft_review':theft_review(s,latest) if latest else None,'observations':[observation_dict(s,o) for o in items],'alerts':[decorated_alert(s,a,user) for a in sorted(alerts,key=alert_sort)],'runs':[{'id':r.id,'active':r.active,'created_at':r.created_at} for r in available],'selected_run_id':selected_run}
 @app.get('/api/v1/vehicles/{vehicle_id}/trajectory')
 def trajectory(vehicle_id:str,run_id:str='current',user=Depends(current_user)):
     with Session() as s:
@@ -299,8 +288,11 @@ def review(association_id:str,body:ReviewInput,user=Depends(current_user)):
 def alerts(status:str='',user=Depends(current_user)):
     with Session() as s:
         q=select(Alert).where(Alert.run_id==get_run(s).id)
-        if status:q=q.where(Alert.status==status)
-        return [alert_dict(s,a) for a in s.scalars(q.order_by(Alert.updated_at.desc()))]
+        if status not in ['','muted']:q=q.where(Alert.status==status)
+        rows=[decorated_alert(s,a,user) for a in sorted(s.scalars(q),key=alert_sort)]
+        if status=='muted':return [a for a in rows if a['notification']['muted']]
+        if status=='dismissed':return rows
+        return [a for a in rows if not a['notification']['muted'] and (status or a['status']!='dismissed')]
 class AlertUpdate(BaseModel):status:Literal['open','acknowledged','dismissed']
 @app.patch('/api/v1/alerts/{alert_id}')
 def alert_update(alert_id:str,body:AlertUpdate,user=Depends(current_user)):
@@ -441,6 +433,9 @@ def evidence_file(evidence_id:str,kind:Literal['original','plate','vehicle'],use
         return FileResponse(path,media_type='image/jpeg',headers={'Cache-Control':'private, max-age=3600'})
 
 (ASSETS/'map').mkdir(parents=True,exist_ok=True)
+app.include_router(extension_router)
+from .jev import router as jev_router
+app.include_router(jev_router)
 app.mount('/map-assets',StaticFiles(directory=ASSETS/'map'),name='map-assets')
 if (ROOT/'dist').exists():
     app.mount('/assets',StaticFiles(directory=ROOT/'dist'/'assets'),name='web-assets')

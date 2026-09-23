@@ -74,6 +74,8 @@ def record_observation(s,data):
     s.add(obs);s.flush()
     s.add(Association(observation_id=obs.id,vehicle_id=obs.vehicle_id,status=status,score=score,reason=reason))
     match_watchlists(s,obs)
+    from .extensions import match_appearance_watches
+    match_appearance_watches(s,obs)
     if status=='accepted': route_anomaly(s,obs)
     emit(s,'observation.created',{'id':obs.id,'vehicle_id':obs.vehicle_id})
     return obs,True

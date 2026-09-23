@@ -14,7 +14,9 @@ def target_sample():
     m=sample_manifest();return next((x for x in m['samples'] if x['id']==m.get('target_sample_id')),None)
 def seed(s,reset=False):
     init_users(s)
-    if s.scalar(select(DemoRun).where(DemoRun.active==True)) and not reset:return
+    existing=s.scalar(select(DemoRun).where(DemoRun.active==True))
+    if existing and not reset:
+        appearance_fixtures(s,existing);return
     if reset:
         # Archive previous runs so plate queries keep their historical evidence.
         for previous in s.scalars(select(DemoRun).where(DemoRun.active==True)):
@@ -53,4 +55,29 @@ def seed(s,reset=False):
     # Seed one exact watchlist episode and one review candidate in the recent window.
     entries += [{'event_key':f'{run.id}:watch-preview','camera_id':'C09','observed_at':SCENARIO_START-110,'run_id':run.id,'track_id':'watch-preview','raw_plate':'DL8CAF2041','ocr_confidence':.97,'vehicle_confidence':.95,'plate_confidence':.94,'vehicle_type':'car','color':'white','source_kind':'synthetic','details':{'confidence_origin':'synthetic fixture','simulated':True,'make_model':'Honda City','size_class':'mid-size','body_style':'sedan','attribute_origin':'seeded demonstration metadata'}}, {'event_key':f'{run.id}:possible-preview','camera_id':'C02','observed_at':SCENARIO_START-50,'run_id':run.id,'track_id':'possible-preview','raw_plate':'DL3CBR882O','ocr_confidence':.74,'vehicle_confidence':.92,'plate_confidence':.86,'vehicle_type':'car','color':'unknown','source_kind':'synthetic','details':{'confidence_origin':'synthetic fixture','simulated':True,'make_model':'unknown','size_class':'unknown','body_style':'unknown','attribute_origin':'seeded demonstration metadata'}}]
     for data in sorted(entries,key=lambda d:d['observed_at']):record_observation(s,data)
+    appearance_fixtures(s,run)
     emit(s,'demo.reset',{'run_id':run.id})
+
+def appearance_fixtures(s,run):
+    """Visible attributes only; no hidden identity labels enter candidate ranking."""
+    examples=[]
+    for j,cam in enumerate(['C01','C02','C03','C04']):
+        examples.append((f'two-tone-{j}',cam,SCENARIO_START-1900+j*450,'DL4CAB6672',
+            'Hyundai Creta',['white','black','red'],{'body':'white','roof':'black','doors':'red'},'contrasting panel',['roof rack'],'clear','readable'))
+    for j,cam in enumerate(['C01','C02','C03','C02','C04']):
+        examples.append((f'dzire-{j}',cam,SCENARIO_START-1200+j*120,None,
+            'Maruti Suzuki Dzire',['white'],{'body':'white'},'solid',
+            ['left bumper dent'] if j==2 else [],'clear','visibly absent'))
+    examples.extend([
+        ('cover-before','C01',SCENARIO_START-1400,None,'unknown',['silver'],{'body':'silver'},'solid',['roof rack'],'clear','out of view'),
+        ('cover-after','C02',SCENARIO_START-800,None,'unknown',['blue'],{},'unknown',[],'heavily obscured','obscured'),
+        ('cover-other','C03',SCENARIO_START-600,None,'unknown',['blue'],{},'unknown',[],'heavily obscured','obscured')])
+    for name,cam,at,plate,model,colors,regions,pattern,features,visibility,plate_visibility in examples:
+        if s.scalar(select(Observation).where(Observation.event_key==f'{run.id}:appearance:{name}')):continue
+        record_observation(s,dict(event_key=f'{run.id}:appearance:{name}',camera_id=cam,observed_at=at,run_id=run.id,
+            track_id='appearance-'+name,raw_plate=plate,ocr_confidence=.97 if plate else None,
+            vehicle_confidence=.93,plate_confidence=.95 if plate else None,vehicle_type='car',
+            color=colors[0] if visibility=='clear' else 'unknown',source_kind='synthetic',details={
+                'simulated':True,'confidence_origin':'synthetic fixture','make_model':model,
+                'attribute_origin':'seeded demonstration metadata','size_class':'mid-size','body_style':'sedan' if 'Dzire' in model else 'unknown',
+                'appearance':{'colors':colors,'regions':regions,'pattern':pattern,'features':features,'visibility':visibility,'plate_visibility':plate_visibility,'origin':'demo fixture'}}))

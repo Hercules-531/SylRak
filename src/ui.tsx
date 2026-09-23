@@ -1,3 +1,4 @@
+import ReviewScore from './ReviewScore';
 import { useState, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -306,6 +307,7 @@ export function EvidenceDetails({
         </div>
       </div>
       <div className="explanation">
+        {!!observation.details?.ocr_alternatives?.length&&<details><summary>Alternative OCR readings</summary>{observation.details.ocr_alternatives.map((a:any,i:number)=><p key={i}>{a.model}: <span className="mono">{a.raw_plate||'Unreadable'}</span> · {pct(a.confidence)} model score. Same image; not independent evidence.</p>)}</details>}
         <div className="eyebrow">WHY THIS ASSOCIATION</div>
         <p>
           {observation.association?.reason || "No plate identity was assigned."}
@@ -376,10 +378,12 @@ export function ObservationTable({
   items,
   onEvidence,
   compact = false,
+  showReview = false,
 }: {
   items: Observation[];
   onEvidence: (o: Observation) => void;
   compact?: boolean;
+  showReview?: boolean;
 }) {
   if (!items.length)
     return (
@@ -397,6 +401,7 @@ export function ObservationTable({
             <th>Camera / location</th>
             <th>Seen at · IST</th>
             <th>OCR score</th>
+            {showReview&&<th>Experimental review</th>}
             <th>Source</th>
             <th />
           </tr>
@@ -448,6 +453,7 @@ export function ObservationTable({
                   {pct(o.ocr_confidence)}
                 </span>
               </td>
+              {showReview&&<td><ReviewScore value={(o as any).theft_review} compact/></td>}
               <td>
                 <SourceBadge source={o.source_kind} />
               </td>

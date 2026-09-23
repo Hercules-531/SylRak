@@ -1,4 +1,6 @@
+import ReviewScore,{ReviewWarning} from './ReviewScore';
 import { useEffect, useState, type FormEvent } from "react";
+import {NotificationControls} from './extensions';
 import {
   Link,
   useNavigate,
@@ -113,6 +115,7 @@ export function Investigations({
   if (applied.to) queryParams.set("to_time", String(stamp(applied.to)));
   queryParams.set("offset", String(offset));
   queryParams.set("limit", "25");
+  queryParams.set("include_review", "true");
   const result = useGet<any>("/observations?" + queryParams);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const submit = (e: FormEvent) => {
@@ -173,6 +176,7 @@ export function Investigations({
           Vehicle description
         </button>
       </div>
+      <div className="investigation-links"><Link to="/appearance" className="secondary">Distinctive appearance & missing plates <ArrowUpRight size={15}/></Link><Link to="/cases" className="text-button">Case workspace</Link></div>
       <form className="search-panel panel" onSubmit={submit}>
         {mode === "plate" ? (
           <div className="search-primary">
@@ -402,7 +406,7 @@ export function Investigations({
           </span>
         </div>
         {result.data ? (
-          <ObservationTable items={result.data.items} onEvidence={onEvidence} />
+          <><ReviewWarning/><ObservationTable items={result.data.items} onEvidence={onEvidence} showReview /></>
         ) : (
           <QueryState query={result} />
         )}
@@ -488,6 +492,7 @@ export function VehiclePage({
             )}
           </div>
         </div>
+        <NotificationControls subject={'plate:'+data.plate}/>
         <label className="run-select">
           Recorded journey
           <select
@@ -503,6 +508,7 @@ export function VehiclePage({
           </select>
         </label>
       </div>
+      <div className="vehicle-review"><ReviewWarning/><ReviewScore value={data.theft_review}/></div>
       <div className="vehicle-stats">
         <div>
           <span>First recorded</span>
@@ -747,8 +753,8 @@ export function AlertsPage({
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         >
-          <option value="">All states</option>
-          {["open", "acknowledged", "dismissed"].map((s) => (
+          <option value="">Active alerts</option>
+          {["open", "acknowledged", "dismissed", "muted"].map((s) => (
             <option key={s}>{s}</option>
           ))}
         </select>
@@ -773,9 +779,9 @@ export function AlertsPage({
                     ? a.category + " · DEMO"
                     : a.match_method === "possible"
                       ? "POSSIBLE WATCHLIST MATCH"
-                      : "ROUTE REVIEW"}
+                      : a.match_method === 'appearance' ? 'APPEARANCE LEAD · REVIEW REQUIRED' : "ROUTE REVIEW"}
                 </span>
-                <span className="alert-status">{a.status}</span>
+                <span className="alert-status">{a.notification?.muted ? 'Muted · ' : ''}{a.status} · {a.sighting_count || 1} sightings</span>
                 <span className="mono muted">
                   {time(a.updated_at, true)} IST
                 </span>
@@ -817,6 +823,7 @@ export function AlertsPage({
                   </button>
                 </div>
               </div>
+              <NotificationControls subject={a.subject || ('observation:'+a.observation.id)}/>
               <div className="alert-detail-footer">
                 <span>
                   Observed{" "}

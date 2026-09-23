@@ -55,6 +55,7 @@ export default function MapView({
   onCamera,
   heat = false,
   compact = false,
+  connectionColor = '#7aacfa',
 }: {
   cameras: Camera[];
   observations?: Observation[];
@@ -62,6 +63,7 @@ export default function MapView({
   onCamera?: (id: string) => void;
   heat?: boolean;
   compact?: boolean;
+  connectionColor?: string;
 }) {
   const element = useRef<HTMLDivElement>(null),
     map = useRef<LibreMap | null>(null),
@@ -177,6 +179,8 @@ export default function MapView({
         },
       });
     }
+    m.setPaintProperty('trajectory-line','line-color',connectionColor);
+    m.setPaintProperty('trajectory-halo','line-color',connectionColor);
     if (accepted.length > 1) {
       const bounds = new maplibregl.LngLatBounds();
       accepted.forEach((o) => bounds.extend([o.camera.lon, o.camera.lat]));
@@ -186,7 +190,7 @@ export default function MapView({
         duration: 500,
       });
     }
-  }, [observations, ready, compact]);
+  }, [observations, ready, compact, connectionColor]);
   useEffect(() => {
     if (!ready || !map.current) return;
     const m = map.current;

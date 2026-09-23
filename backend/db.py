@@ -150,11 +150,53 @@ class StreamEvent(Base):
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[float] = mapped_column(default=time.time)
 
+class NotificationPreference(Base):
+    __tablename__='notification_preferences'
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    user_id: Mapped[str]  # '*' denotes administrator-controlled suppression.
+    subject: Mapped[str]
+    muted: Mapped[bool] = mapped_column(default=False)
+    until: Mapped[float|None]
+    __table_args__=(Index('ix_notification_subject','user_id','subject',unique=True),)
+
+class NotificationState(Base):
+    __tablename__='notification_state'
+    user_id: Mapped[str] = mapped_column(String, primary_key=True)
+    cursor: Mapped[int] = mapped_column(default=0)
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+
+class InvestigationCase(Base):
+    __tablename__='investigation_cases'
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    title: Mapped[str]
+    description: Mapped[str] = mapped_column(default='')
+    created_by: Mapped[str]
+    created_at: Mapped[float] = mapped_column(default=time.time)
+    criteria: Mapped[dict] = mapped_column(JSON, default=dict)
+
+class CaseLink(Base):
+    __tablename__='case_links'
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    case_id: Mapped[str] = mapped_column(ForeignKey('investigation_cases.id'))
+    observation_id: Mapped[str]  # May outlive retention; expired evidence is explicit.
+    status: Mapped[str] = mapped_column(default='proposed')
+    history: Mapped[list] = mapped_column(JSON, default=list)
+    __table_args__=(Index('ix_case_observation','case_id','observation_id',unique=True),)
+
+class AppearanceWatch(Base):
+    __tablename__='appearance_watches'
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    case_id: Mapped[str] = mapped_column(ForeignKey('investigation_cases.id'))
+    criteria: Mapped[dict] = mapped_column(JSON, default=dict)
+    active: Mapped[bool] = mapped_column(default=True)
+    expires_at: Mapped[float]
+
 def migrate():
     # Versioned, additive baseline; migrations run before serving requests.
     Base.metadata.create_all(engine)
     with Session.begin() as s:
         s.execute(insert(SchemaVersion).values(version=1,applied_at=time.time()).on_conflict_do_nothing())
+        s.execute(insert(SchemaVersion).values(version=2,applied_at=time.time()).on_conflict_do_nothing())
     # Additive migration for existing prototype databases.
     with engine.begin() as c:
         c.exec_driver_sql('CREATE UNIQUE INDEX IF NOT EXISTS ix_observation_track ON observations (run_id,camera_id,track_id)')

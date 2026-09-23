@@ -1,6 +1,10 @@
 node_modules/
 dist/
 .venv/
+.venv313/
+API_KEYS/
+api-key/
+artifacts/recognition-upgrade/
 .env
 .sites-runtime/
 __pycache__/

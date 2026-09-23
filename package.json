@@ -7,7 +7,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1",
-    "test:ui": "node scripts/browser-check.mjs"
+    "test:ui": "node scripts/browser-check.mjs http://127.0.0.1:8010",
+    "test:upgrades": "node scripts/browser-upgrade-check.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.2.0",

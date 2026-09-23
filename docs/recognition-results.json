@@ -1,0 +1,330 @@
+{
+  "model": {
+    "vehicle": "yolov8n.pt",
+    "plate": "yolo-v9-t-384-license-plate-end2end",
+    "ocr": "en_PP-OCRv5_mobile_rec",
+    "provider": "CPUExecutionProvider",
+    "versions": {
+      "fast-alpr": "0.4.0",
+      "fast-plate-ocr": "1.1.0",
+      "open-image-models": "0.6.0",
+      "ultralytics": "8.4.160",
+      "onnxruntime": "1.30.0",
+      "torch": "2.14.0",
+      "paddlepaddle": "3.3.1"
+    },
+    "ocr_provider": "Paddle CPU",
+    "alternative_ocr": "cct-s-v2-global-model",
+    "preprocessing": "padding-0.06-geometric-row-split-v1",
+    "evaluation": "Small exploratory comparison; 7/31 exact vs baseline 4/31. 90% not established."
+  },
+  "images": 31,
+  "exact": 7,
+  "exact_accuracy": 0.22580645161290322,
+  "cer": 0.35051546391752575,
+  "unreadable": 1,
+  "mean_inference_seconds": 0.5185483870967742,
+  "plate_detection": {
+    "annotated_images": 4,
+    "iou": 0.5,
+    "tp": 6,
+    "fp": 1,
+    "fn": 1,
+    "precision": 0.8571428571428571,
+    "recall": 0.8571428571428571
+  },
+  "spatial_full_plate": {
+    "n": 4,
+    "exact": 0
+  },
+  "ocr_annotated_crops": {
+    "n": 4,
+    "exact": 0
+  },
+  "limitations": [
+    "Exploratory convenience set, previously inspected; not an untouched test set.",
+    "Bounding boxes exist for only four non-demo evaluation images; detection statistics are illustrative only.",
+    "Vehicle detection precision/recall unavailable: no vehicle box annotations.",
+    "No 90% claim. Fine-tuning and 200 independent test images remain outstanding."
+  ],
+  "rows": [
+    {
+      "sample": "sample-001",
+      "truth": "KL01BN8858",
+      "prediction": "KL011BN885",
+      "exact": false,
+      "edit_distance": 2,
+      "seconds": 1.079
+    },
+    {
+      "sample": "sample-002",
+      "truth": "KL01CR1247",
+      "prediction": "EKL01CRT2N",
+      "exact": false,
+      "edit_distance": 4,
+      "seconds": 0.237
+    },
+    {
+      "sample": "sample-003",
+      "truth": "KL22Q0952",
+      "prediction": "2200952",
+      "exact": false,
+      "edit_distance": 3,
+      "seconds": 0.407
+    },
+    {
+      "sample": "sample-005",
+      "truth": "KL01BM4629",
+      "prediction": "KL01BH5229",
+      "exact": false,
+      "edit_distance": 3,
+      "seconds": 0.348
+    },
+    {
+      "sample": "sample-006",
+      "truth": "KL01CE2893",
+      "prediction": "18193",
+      "exact": false,
+      "edit_distance": 7,
+      "seconds": 0.45
+    },
+    {
+      "sample": "sample-007",
+      "truth": "KL34B9983",
+      "prediction": "KL34B9983",
+      "exact": true,
+      "edit_distance": 0,
+      "seconds": 0.253
+    },
+    {
+      "sample": "sample-008",
+      "truth": "KL22H6948",
+      "prediction": "12H694",
+      "exact": false,
+      "edit_distance": 4,
+      "seconds": 0.263
+    },
+    {
+      "sample": "sample-010",
+      "truth": "KL22K6435",
+      "prediction": "KL22K6435",
+      "exact": true,
+      "edit_distance": 0,
+      "seconds": 0.549
+    },
+    {
+      "sample": "sample-012",
+      "truth": "KL07BX7698",
+      "prediction": "KL070GX698",
+      "exact": false,
+      "edit_distance": 3,
+      "seconds": 0.491
+    },
+    {
+      "sample": "sample-023",
+      "truth": "KL1BU888",
+      "prediction": "KLIBU888",
+      "exact": false,
+      "edit_distance": 1,
+      "seconds": 0.331
+    },
+    {
+      "sample": "sample-025",
+      "truth": "KL07CV4477",
+      "prediction": "OCL7",
+      "exact": false,
+      "edit_distance": 8,
+      "seconds": 0.347
+    },
+    {
+      "sample": "sample-026",
+      "truth": "KL26C8642",
+      "prediction": "ACC8642KL26C0",
+      "exact": false,
+      "edit_distance": 10,
+      "seconds": 0.507
+    },
+    {
+      "sample": "sample-033",
+      "truth": "KL02BT6708",
+      "prediction": "KLO2B608",
+      "exact": false,
+      "edit_distance": 3,
+      "seconds": 0.352
+    },
+    {
+      "sample": "sample-034",
+      "truth": "KL46X6131",
+      "prediction": "KL46X01S",
+      "exact": false,
+      "edit_distance": 3,
+      "seconds": 0.459
+    },
+    {
+      "sample": "sample-037",
+      "truth": "KL82A0726",
+      "prediction": "KL82A0726",
+      "exact": true,
+      "edit_distance": 0,
+      "seconds": 0.646
+    },
+    {
+      "sample": "sample-038",
+      "truth": "KL04Y4664",
+      "prediction": "LLY4S64",
+      "exact": false,
+      "edit_distance": 4,
+      "seconds": 0.484
+    },
+    {
+      "sample": "sample-041",
+      "truth": "KL803148",
+      "prediction": "EKL8N003148",
+      "exact": false,
+      "edit_distance": 3,
+      "seconds": 0.666
+    },
+    {
+      "sample": "sample-042",
+      "truth": "KL24C6495",
+      "prediction": "KL24C6495",
+      "exact": true,
+      "edit_distance": 0,
+      "seconds": 0.621
+    },
+    {
+      "sample": "sample-043",
+      "truth": "KL02AF9198",
+      "prediction": "KLOOALUZAF9198",
+      "exact": false,
+      "edit_distance": 6,
+      "seconds": 0.731
+    },
+    {
+      "sample": "sample-045",
+      "truth": "KL25E8801",
+      "prediction": "112SES501",
+      "exact": false,
+      "edit_distance": 5,
+      "seconds": 0.341
+    },
+    {
+      "sample": "sample-046",
+      "truth": "KL02AU1722",
+      "prediction": "KL02AU1LL",
+      "exact": false,
+      "edit_distance": 3,
+      "seconds": 0.777
+    },
+    {
+      "sample": "sample-047",
+      "truth": "KL02BC5566",
+      "prediction": "EXL021LBGE",
+      "exact": false,
+      "edit_distance": 8,
+      "seconds": 0.821
+    },
+    {
+      "sample": "sample-048",
+      "truth": "KL02BB1809",
+      "prediction": "KL02BB1809",
+      "exact": true,
+      "edit_distance": 0,
+      "seconds": 0.825
+    },
+    {
+      "sample": "sample-050",
+      "truth": "KL25P6583",
+      "prediction": "KI25P6588",
+      "exact": false,
+      "edit_distance": 2,
+      "seconds": 0.536
+    },
+    {
+      "sample": "sample-051",
+      "truth": "KL25P9099",
+      "prediction": "L25P900539",
+      "exact": false,
+      "edit_distance": 4,
+      "seconds": 0.339
+    },
+    {
+      "sample": "sample-052",
+      "truth": "KL02BN7208",
+      "prediction": "KLO2BN7208",
+      "exact": false,
+      "edit_distance": 1,
+      "seconds": 0.533
+    },
+    {
+      "sample": "sample-054",
+      "truth": "KL01BB6697",
+      "prediction": "MONDABB6697",
+      "exact": false,
+      "edit_distance": 5,
+      "seconds": 0.633
+    },
+    {
+      "sample": "sample-055",
+      "truth": "KL61C9123",
+      "prediction": "KL61C9123",
+      "exact": true,
+      "edit_distance": 0,
+      "seconds": 0.359
+    },
+    {
+      "sample": "sample-057",
+      "truth": "KL25J2540",
+      "prediction": "",
+      "exact": false,
+      "edit_distance": 9,
+      "seconds": 0.35
+    },
+    {
+      "sample": "sample-059",
+      "truth": "KL02AV0598",
+      "prediction": "PKL02AV0598",
+      "exact": false,
+      "edit_distance": 1,
+      "seconds": 1.015
+    },
+    {
+      "sample": "sample-060",
+      "truth": "KL06K5458",
+      "prediction": "KL06K5458",
+      "exact": true,
+      "edit_distance": 0,
+      "seconds": 0.325
+    }
+  ],
+  "spatial_rows": [
+    {
+      "sample": "sample-012",
+      "truth": "KL07BX7698",
+      "spatial_prediction": "KL070GX698",
+      "annotated_crop_prediction": "PKLOZGX698",
+      "detected": true
+    },
+    {
+      "sample": "sample-023",
+      "truth": "KL1BU888",
+      "spatial_prediction": "KLIBU888",
+      "annotated_crop_prediction": "KLIBU888",
+      "detected": true
+    },
+    {
+      "sample": "sample-025",
+      "truth": "KL07CV4477",
+      "spatial_prediction": "OCL7",
+      "annotated_crop_prediction": "O7C1L4",
+      "detected": true
+    },
+    {
+      "sample": "sample-026",
+      "truth": "KL26C8642",
+      "spatial_prediction": "ACC8642KL26C0",
+      "annotated_crop_prediction": "ACC862KL26C",
+      "detected": true
+    }
+  ]
+}

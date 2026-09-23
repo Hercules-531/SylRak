@@ -32,4 +32,22 @@ Open **Traffic analytics**. Flow, monitored-location intensity, observed origin�
 
 - If a replay is already complete, click **New demo run**, recognize `sample-027`, set `60×`, and Play.
 - If a camera was set offline, return to **Cameras** and set it online before assigning an image.
-- The interface works offline at `http://127.0.0.1:8000`.
+- The core interface works offline at `http://127.0.0.1:8010`.
+
+## Optional additions for judges
+
+**Jev, without spending another request:** Investigations → Distinctive appearance → expand “Describe a vehicle in your own words.” Enter exactly:
+
+> A white Creta with a black roof, a red door panel and a roof rack
+
+Click **Search with Jev**. Its filters are applied automatically and the matching results appear. The cached real response works offline and is labeled “Search complete using saved Jev filters”. The first result is `DL4CAB6672`; open **History (4)**. Explain that Jev classifies written descriptions; the camera matching uses stored evidence and deterministic filters.
+
+**Common cars:** choose **White Dzires**. Five separate plausible candidates remain separate. Select two, compare, and add them to a case. A review reason is required before accepting a case connection. This does not confirm identity or stolen status.
+
+**Covered cars:** choose **Covered vehicles**. Hidden paint/model details remain unknown. The blue covering is a visible attribute, not proof of the underlying body color.
+
+**Quiet alerts:** open Alerts and use **Vehicle alert controls → Mute for 15 minutes**. Select the **Muted** filter to retrieve it; unmute it afterward. Administrator “Stop alerts for everyone” also dismisses current alerts. Evidence continues accumulating.
+
+**Independent registration:** open Registration lookup and click **DL10CZ7788**. This synthetic registry entry has never been seen by a camera. Search `DL99ZZ9999` to demonstrate the honest unavailable state.
+
+If asked about accuracy, say: “The demo target is recognized correctly. Our broader exploratory result is 7/31 exact plates, or 22.6%, so 90% is a research target, not a demonstrated result.” No live police database or live registration integration is connected.

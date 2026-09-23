@@ -1,14 +1,19 @@
 {
   "vehicle": "yolov8n.pt",
   "plate": "yolo-v9-t-384-license-plate-end2end",
-  "ocr": "cct-s-v2-global-model",
+  "ocr": "en_PP-OCRv5_mobile_rec",
   "provider": "CPUExecutionProvider",
   "versions": {
     "fast-alpr": "0.4.0",
     "fast-plate-ocr": "1.1.0",
     "open-image-models": "0.6.0",
-    "ultralytics": "8.4.148",
+    "ultralytics": "8.4.160",
     "onnxruntime": "1.30.0",
-    "torch": "2.14.0"
-  }
+    "torch": "2.14.0",
+    "paddlepaddle": "3.3.1"
+  },
+  "ocr_provider": "Paddle CPU",
+  "alternative_ocr": "cct-s-v2-global-model",
+  "preprocessing": "padding-0.06-geometric-row-split-v1",
+  "evaluation": "Small exploratory comparison; 7/31 exact vs baseline 4/31. 90% not established."
 }

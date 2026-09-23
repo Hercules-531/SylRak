@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import {
   NavLink,
   Routes,
@@ -20,8 +20,9 @@ import {
   Play,
   Pause,
   RotateCcw,
-  LogOut,
   ChevronRight,
+  PanelLeft,
+  CornerDownLeft,
   Check,
   TriangleAlert,
   Activity,
@@ -38,6 +39,7 @@ import {
   type Alert,
 } from "./api";
 import MapView from "./MapView";
+import {RegistrationPage, AppearancePage, CasesPage, CasePage, NotificationBanners} from './extensions';
 import {
   Plate,
   Modal,
@@ -65,78 +67,8 @@ const nav = [
   { to: "/cameras", name: "Cameras", icon: Camera },
   { to: "/traffic", name: "Traffic analytics", icon: ChartNoAxesCombined },
   { to: "/watchlist", name: "Watchlist", icon: ListFilter },
+  { to: "/registrations", name: "Registration lookup", icon: Search },
 ];
-function Login() {
-  const client = useQueryClient();
-  const [username, setUsername] = useState("admin"),
-    [password, setPassword] = useState(""),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    try {
-      await post("/auth/login", { username, password });
-      await client.invalidateQueries();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <div className="login-screen">
-      <div className="login-brand">
-        sylrak<span>VEHICLE INTELLIGENCE</span>
-      </div>
-      <div className="login-panel">
-        <div className="eyebrow">DELHI · LOCAL WORKSPACE</div>
-        <h1>Command access</h1>
-        <p>Sign in to the vehicle intelligence prototype.</p>
-        <form onSubmit={submit}>
-          <label>
-            Account
-            <select
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            >
-              <option value="admin">Administrator</option>
-              <option value="operator">Police operator</option>
-            </select>
-          </label>
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              autoComplete="current-password"
-              onChange={(e) => setPassword(e.target.value)}
-              autoFocus
-              required
-            />
-          </label>
-          {error && <p className="form-error">{error}</p>}
-          <button className="primary" disabled={busy}>
-            {busy ? "Signing in…" : "Open workspace"}
-            <ArrowUpRight size={17} />
-          </button>
-        </form>
-        <div className="login-note">
-          <ShieldAlert size={16} />
-          <span>
-            Local credentials are in the project’s .env file and shown by the
-            startup script.
-          </span>
-        </div>
-      </div>
-      <div className="login-footer">
-        SIH26127{" "}
-        <span>Simulated camera network · Demonstration watchlists</span>
-      </div>
-    </div>
-  );
-}
 export default function App() {
   const user = useGet<any>("/auth/me");
   const [toast, setToast] = useState<{
@@ -163,7 +95,7 @@ export default function App() {
       ) : user.data ? (
         <Workspace user={user.data} />
       ) : (
-        <Login />
+        <ErrorState error={user.error || new Error('Local server is unavailable.')} retry={()=>user.refetch()} />
       )}
       {toast && (
         <div className={"toast " + (toast.error ? "error" : "")} role="status">
@@ -191,6 +123,10 @@ function Workspace({ user }: { user: any }) {
     [recognition, setRecognition] = useState(false),
     [evidence, setEvidence] = useState<Observation | null>(null);
   const action = useAction();
+  const [navigationOpen,setNavigationOpen]=useState(false);
+  const [wallClock,setWallClock]=useState(()=>Date.now());
+  useEffect(()=>{const timer=setInterval(()=>setWallClock(Date.now()),60000);return()=>clearInterval(timer)},[]);
+  useEffect(()=>setNavigationOpen(false),[location.pathname]);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
@@ -228,7 +164,15 @@ function Workspace({ user }: { user: any }) {
   );
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <NotificationBanners />
+      <div className={'navigation-drawer'+(navigationOpen?' is-open':'')}
+        onMouseEnter={()=>setNavigationOpen(true)}
+        onMouseLeave={e=>{if(!e.currentTarget.contains(document.activeElement))setNavigationOpen(false)}}
+        onFocusCapture={()=>setNavigationOpen(true)}
+        onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setNavigationOpen(false)}}
+        onKeyDown={e=>{if(e.key==='Escape'){e.currentTarget.querySelector<HTMLButtonElement>('.navigation-trigger')?.focus();setNavigationOpen(false)}}}>
+      <button className="navigation-trigger" aria-label="Open navigation" aria-expanded={navigationOpen} aria-controls="navigation-panel" title="Hover to open navigation" onClick={()=>setNavigationOpen(true)}><PanelLeft size={16}/></button>
+      <aside id="navigation-panel" className="sidebar" inert={!navigationOpen}>
         <Link to="/" className="brand">
           <span className="brand-symbol">
             <i />
@@ -250,7 +194,7 @@ function Workspace({ user }: { user: any }) {
           </div>
         </div>
         <div className="nav-label">OPERATIONS</div>
-        <nav>
+        <nav aria-label="Main navigation">
           {nav.map(({ to, name, icon: Icon }, i) => (
             <NavLink
               key={to}
@@ -269,16 +213,18 @@ function Workspace({ user }: { user: any }) {
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <div id="notification-sound-control"/>
           <div className="system-status">
             <span className={"dot " + (connected ? "online" : "offline")} />
             {connected ? "Local backend connected" : "Reconnecting…"}
           </div>
           <span className="sidebar-version">
-            SYLRAK / SIH26127<span>v0.1 · Local prototype</span>
+            SYLRAK / SIH26127<span>v0.2 · Local prototype</span>
           </span>
         </div>
       </aside>
-      <section className="main-shell">
+      </div>
+      <section className="main-shell" onPointerDown={()=>setNavigationOpen(false)}>
         <header className="topbar">
           <div className="breadcrumb">
             Workspace
@@ -286,7 +232,7 @@ function Workspace({ user }: { user: any }) {
             <strong>
               {location.pathname.startsWith("/vehicles")
                 ? "Vehicle history"
-                : active?.name || "Command"}
+                : active?.name || (location.pathname.startsWith('/cases')?'Investigation cases':'Appearance search')}
             </strong>
           </div>
           <form
@@ -303,26 +249,13 @@ function Workspace({ user }: { user: any }) {
               placeholder="Find a registration…"
               aria-label="Search vehicle registration"
             />
-            <kbd>↵</kbd>
+            <kbd aria-label="Press Enter"><CornerDownLeft size={14}/></kbd>
           </form>
           <div className="header-date">
-            {snap.data ? date(snap.data.run.clock) : "12 Sep 2026"}
-            <span>SCENARIO DATE</span>
+            {date(wallClock/1000)}
+            <span>TODAY · IST</span>
           </div>
-          <button
-            className="user-chip"
-            title="Sign out"
-            onClick={() =>
-              action(() => post("/auth/logout", {})).then(() => client.clear())
-            }
-          >
-            <span>{user.role === "admin" ? "AD" : "OP"}</span>
-            <div>
-              {user.role === "admin" ? "Administrator" : "Operator"}
-              <small>Local session</small>
-            </div>
-            <LogOut size={14} />
-          </button>
+          <div className="user-chip"><span>SR</span><div>Local workspace<small>No sign-in required</small></div></div>
         </header>
         <div className="demo-strip">
           <span>
@@ -343,13 +276,13 @@ function Workspace({ user }: { user: any }) {
           <>
             <div className="workspace-toolbar">
               <div>
-                <div className="eyebrow">DELHI OPERATIONS</div>
+                
                 <h1>
                   {location.pathname === "/"
                     ? "City command"
                     : location.pathname.startsWith("/vehicles")
                       ? "Vehicle investigation"
-                      : active?.name || "Workspace"}
+                      : active?.name || (location.pathname.startsWith('/cases')?'Investigation cases':'Appearance search')}
                 </h1>
               </div>
               <div className="demo-controls">
@@ -358,7 +291,7 @@ function Workspace({ user }: { user: any }) {
                     {time(snap.data.run.clock, true)}
                   </span>
                   <small>
-                    IST ·{" "}
+                    {date(snap.data.run.clock)} · IST ·{" "}
                     {snap.data.run.status === "running"
                       ? "PLAYING"
                       : snap.data.run.status.toUpperCase()}
@@ -439,6 +372,10 @@ function Workspace({ user }: { user: any }) {
               </div>
             </div>
             <Routes>
+              <Route path="/registrations" element={<RegistrationPage/>}/>
+              <Route path="/appearance" element={<AppearancePage cameras={snap.data.cameras} onEvidence={setEvidence}/>}/>
+              <Route path="/cases" element={<CasesPage/>}/>
+              <Route path="/cases/:id" element={<CasePage cameras={snap.data.cameras} onEvidence={setEvidence}/>}/>
               <Route
                 path="/"
                 element={

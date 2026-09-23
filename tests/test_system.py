@@ -80,17 +80,13 @@ def test_reset_preserves_stored_history(database):
         assert s.get(Observation,original_id) and vehicle_dict(s,s.get(Vehicle,vehicle_id),'run')['sightings']==1
         assert get_run(s).id!='run'
 
-def login(client,role='admin'):
-    r=client.post('/api/v1/auth/login',json={'username':role,'password':os.environ['SYLRAK_'+role.upper()+'_PASSWORD']});assert r.status_code==200
-
-def test_sessions_roles_csrf_upload_validation(database):
+def test_direct_access_origin_and_upload_validation(database):
     client=TestClient(main.app)
-    assert client.get('/api/v1/observations').status_code==401
-    login(client,'operator')
-    assert client.post('/api/v1/demo',json={'action':'reset'}).status_code==403
-    assert client.get('/api/v1/audit').status_code==403
-    assert client.post('/api/v1/observations',json=event(1)).status_code==403
-    assert client.post('/api/v1/auth/logout',headers={'Origin':'https://example.net'}).status_code==403
+    assert client.get('/api/v1/observations').status_code==200
+    assert client.get('/api/v1/auth/me').json()['role']=='admin'
+    assert client.get('/api/v1/audit').status_code==200
+    assert not client.cookies
+    assert client.post('/api/v1/demo',json={'action':'pause'},headers={'Origin':'https://example.net'}).status_code==403
     assert client.post('/api/v1/inference/jobs',files={'file':('bad.jpg',b'not an image','image/jpeg')}).status_code==422
     assert client.post('/api/v1/inference/jobs',files={'file':('big.jpg',b'x'*(10*1024*1024+1),'image/jpeg')}).status_code==413
     assert client.post('/api/v1/inference/jobs',data={'sample_id':'sample-027','camera_id':'C12'}).status_code==409
@@ -98,7 +94,7 @@ def test_sessions_roles_csrf_upload_validation(database):
 def test_filters_review_and_immutable_ocr(database):
     with database.begin() as s:
         watch(s);first,_=record_observation(s,event(1,details={'make_model':'Honda City','size_class':'mid-size','body_style':'sedan'}));fuzzy,_=record_observation(s,event(2,plate='DL01AB1235',confidence=.7));s.flush();a=s.scalar(select(Association).where(Association.observation_id==fuzzy.id));aid=a.id
-    client=TestClient(main.app);login(client)
+    client=TestClient(main.app)
     r=client.get('/api/v1/observations',params={'plate':'dl 01-ab1234','camera':'C01','status':'accepted','alert_status':'open'}).json();assert r['total']==1
     described=client.get('/api/v1/observations',params={'vehicle_type':'car','color':'unknown','size_class':'mid-size','make_model':'honda'}).json();assert described['total']==1
     assert client.patch('/api/v1/associations/'+aid,json={'status':'rejected','reason':'Different number on the evidence'}).status_code==200

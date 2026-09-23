@@ -13,5 +13,5 @@ export const pct=(value:number|null|undefined)=>value==null?'—':(value*100).to
 export const number=(v:number|undefined)=>new Intl.NumberFormat('en-IN').format(v||0);
 export type Camera={id:string;name:string;road:string;lat:number;lon:number;direction:string;status:string;heartbeat:number;passages?:number};
 export type Observation={id:string;plate:string|null;raw_plate:string|null;canonical_plate:string|null;vehicle_id:string|null;camera_id:string;camera:Camera;observed_at:number;ingested_at:number;run_id:string;source_kind:string;vehicle_type:string;color:string;ocr_confidence:number|null;vehicle_confidence:number|null;plate_confidence:number|null;status:string;evidence:any;association:any;details:any;format:string};
-export type Alert={id:string;vehicle_id:string|null;priority:string;category:string;reason:string;match_method:string;status:string;created_at:number;updated_at:number;observation:Observation;watchlist:any};
+export type Alert={id:string;vehicle_id:string|null;priority:string;category:string;reason:string;match_method:string;status:string;created_at:number;updated_at:number;observation:Observation;watchlist:any;subject:string;notification:any;sighting_count:number};
 export type Snapshot={run:any;cameras:Camera[];recent:Observation[];alerts:Alert[];summary:any;models:any};

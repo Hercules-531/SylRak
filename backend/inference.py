@@ -6,6 +6,7 @@ from PIL import Image, ImageOps
 from .config import ASSETS, EVIDENCE
 
 _models=None
+_paddle=None
 
 def box_iou(a,b):
     intersection=max(0,min(a[2],b[2])-max(a[0],b[0]))*max(0,min(a[3],b[3])-max(a[1],b[1]))
@@ -29,7 +30,7 @@ def deduplicate_detections(found):
         retained.append(item)
     return retained
 def load_models():
-    global _models
+    global _models, _paddle
     if _models is not None: return _models
     import onnxruntime as ort
     from fast_alpr import ALPR
@@ -45,6 +46,13 @@ def load_models():
     yolo=YOLO(str(models/'yolov8n.pt'))
     versions={name:importlib.metadata.version(name) for name in ['fast-alpr','fast-plate-ocr','open-image-models','ultralytics','onnxruntime','torch']}
     metadata={'vehicle':'yolov8n.pt','plate':'yolo-v9-t-384-license-plate-end2end','ocr':'cct-s-v2-global-model','provider':'CPUExecutionProvider','versions':versions}
+    if os.environ.get('SYLRAK_OCR_BACKEND','paddle')=='paddle':
+        from .recognition_options import PaddleCropReader
+        _paddle=PaddleCropReader(models/'paddle/en_PP-OCRv5_mobile_rec')
+        metadata.update(ocr='en_PP-OCRv5_mobile_rec',ocr_provider='Paddle CPU',
+                        alternative_ocr='cct-s-v2-global-model',preprocessing='padding-0.06-geometric-row-split-v1',
+                        evaluation='Small exploratory comparison; 7/31 exact vs baseline 4/31. 90% not established.')
+        metadata['versions']['paddlepaddle']=importlib.metadata.version('paddlepaddle')
     (models/'manifest.json').write_text(json.dumps(metadata,indent=2))
     _models=(yolo,alpr,metadata)
     return _models
@@ -80,7 +88,29 @@ def infer_image(path,output_dir=None):
             text=(p.ocr.text or '').strip() if p.ocr else ''
             confidence=(float(np.mean(scores)) if isinstance(scores,(list,np.ndarray)) else (float(scores) if scores is not None else None)) if text else None
             found.append({'raw_plate':text or None,'ocr_confidence':confidence,'character_scores':[float(x) for x in scores] if text and isinstance(scores,(list,np.ndarray)) else None,'plate_confidence':float(p.detection.confidence),'plate_box':pb,'vehicle_box':v['box'] if v['confidence'] is not None else None,'vehicle_confidence':v['confidence'],'vehicle_type':v['type'],'color':'unknown'})
+    if vehicles and not any(item.get('plate_box') for item in found):
+        # A region crop can miss the plate even though the generic detector found a vehicle.
+        for p in alpr.predict(frame):
+            b=p.detection.bounding_box;pb=[max(0,b.x1),max(0,b.y1),min(w,b.x2),min(h,b.y2)]
+            cx,cy=(pb[0]+pb[2])/2,(pb[1]+pb[3])/2
+            containing=[v for v in vehicles if v['box'][0]<=cx<=v['box'][2] and v['box'][1]<=cy<=v['box'][3]]
+            v=min(containing,key=lambda v:(v['box'][2]-v['box'][0])*(v['box'][3]-v['box'][1])) if containing else None
+            scores=p.ocr.confidence if p.ocr else None;text=p.ocr.text if p.ocr else None
+            score=float(np.mean(scores)) if scores is not None else None
+            found.append({'raw_plate':text,'ocr_confidence':score,'character_scores':None,
+                'plate_confidence':float(p.detection.confidence),'plate_box':pb,
+                'vehicle_box':v['box'] if v else None,'vehicle_confidence':v['confidence'] if v else None,
+                'vehicle_type':v['type'] if v else 'unknown','color':'unknown'})
     found=deduplicate_detections(found)
+    # Rollback through SYLRAK_OCR_BACKEND=cct. Alternatives are not independent frames.
+    if _paddle is not None:
+        from .recognition_options import prepare_crop,single_line
+        for item in found:
+            if not item.get('plate_box'):continue
+            item['ocr_alternatives']=[{'model':'cct-s-v2-global-model','raw_plate':item['raw_plate'],
+                                       'confidence':item['ocr_confidence'],'character_scores':item['character_scores']}]
+            text,score=_paddle.read(single_line(prepare_crop(frame,item['plate_box'])))
+            item.update(raw_plate=text or None,ocr_confidence=score if text else None,character_scores=None)
     elapsed=time.perf_counter()-started
     folder=Path(output_dir) if output_dir else EVIDENCE
     folder.mkdir(parents=True,exist_ok=True)

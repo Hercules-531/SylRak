@@ -1,13 +1,11 @@
 from pathlib import Path
-import os, secrets
+import os
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = Path(os.environ.get('SYLRAK_RUNTIME', ROOT / 'runtime'))
 RUNTIME.mkdir(parents=True, exist_ok=True)
 ENV = ROOT / '.env'
-if not ENV.exists():
-    ENV.write_text('SYLRAK_ADMIN_PASSWORD=' + secrets.token_urlsafe(12) + '\nSYLRAK_OPERATOR_PASSWORD=' + secrets.token_urlsafe(12) + '\n', encoding='utf-8')
 load_dotenv(ENV)
 ASSETS = ROOT / 'assets'
 EVIDENCE = RUNTIME / 'evidence'

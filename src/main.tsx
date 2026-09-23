@@ -8,6 +8,8 @@ import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import './styles.css';
+import './extensions.css';
+import './oled.css';
 import App from './App';
 const client=new QueryClient({defaultOptions:{queries:{retry:1,staleTime:2000,refetchOnWindowFocus:false}}});
 createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={client}><BrowserRouter><App/></BrowserRouter></QueryClientProvider></React.StrictMode>);

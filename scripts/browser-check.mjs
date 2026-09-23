@@ -3,12 +3,6 @@ import { readFile, mkdir, writeFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 const base =
   process.argv[2] || process.env.SYLRAK_URL || "http://127.0.0.1:5173";
-const env = Object.fromEntries(
-  (await readFile(".env", "utf8"))
-    .split(/\r?\n/)
-    .filter((x) => x.includes("="))
-    .map((x) => [x.slice(0, x.indexOf("=")), x.slice(x.indexOf("=") + 1)]),
-);
 await mkdir("artifacts/qa", { recursive: true });
 const browser = await chromium.launch({ channel: "chrome", headless: true });
 const context = await browser.newContext({
@@ -51,10 +45,6 @@ async function get(path) {
   return response.json();
 }
 try {
-  await request("/auth/login", {
-    username: "admin",
-    password: env.SYLRAK_ADMIN_PASSWORD,
-  });
   await request("/demo", { action: "reset" });
   await page.goto(base);
   await page
@@ -91,7 +81,8 @@ try {
   const before = await get("/snapshot");
   assert.ok(before.run.target_observation_id, "Actual target was not accepted");
   const target = await get("/observations/" + before.run.target_observation_id);
-  assert.equal(target.raw_plate, "KL22L9038");
+  assert.equal(target.raw_plate.toUpperCase().replace(/[^A-Z0-9]/g, ""), "KL22L9038");
+  assert.equal(target.plate, "KL22L9038");
   assert.equal(target.source_kind, "real_inference");
   assert.ok(
     target.details.vehicle_box &&
