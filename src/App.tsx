@@ -15,7 +15,6 @@ import {
   ChartNoAxesCombined,
   ShieldAlert,
   ListFilter,
-  ArrowUpRight,
   ScanLine,
   Play,
   Pause,
@@ -25,7 +24,6 @@ import {
   CornerDownLeft,
   Check,
   TriangleAlert,
-  Activity,
   X,
 } from "lucide-react";
 import {
@@ -33,18 +31,16 @@ import {
   useGet,
   time,
   date,
-  number,
   type Snapshot,
   type Observation,
   type Alert,
 } from "./api";
-import MapView from "./MapView";
+import Command from "./Command";
+import ActivityPage from './Activity';
+import {goToSection} from './sceneMotion';
 import {RegistrationPage, AppearancePage, CasesPage, CasePage, NotificationBanners} from './extensions';
 import {
-  Plate,
   Modal,
-  ObservationTable,
-  AlertCard,
   EvidenceDetails,
   Empty,
   Loading,
@@ -64,6 +60,7 @@ const nav = [
   { to: "/", name: "Command", icon: LayoutDashboard },
   { to: "/investigations", name: "Investigations", icon: Search },
   { to: "/alerts", name: "Alerts", icon: ShieldAlert },
+  { to: "/activity", name: "Activity log", icon: ListFilter },
   { to: "/cameras", name: "Cameras", icon: Camera },
   { to: "/traffic", name: "Traffic analytics", icon: ChartNoAxesCombined },
   { to: "/watchlist", name: "Watchlist", icon: ListFilter },
@@ -126,7 +123,7 @@ function Workspace({ user }: { user: any }) {
   const [navigationOpen,setNavigationOpen]=useState(false);
   const [wallClock,setWallClock]=useState(()=>Date.now());
   useEffect(()=>{const timer=setInterval(()=>setWallClock(Date.now()),60000);return()=>clearInterval(timer)},[]);
-  useEffect(()=>setNavigationOpen(false),[location.pathname]);
+  useEffect(()=>{setNavigationOpen(false);window.scrollTo({top:0,behavior:"instant"})},[location.pathname]);
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let stopped = false;
@@ -162,128 +159,18 @@ function Workspace({ user }: { user: any }) {
       ? location.pathname === "/"
       : location.pathname.startsWith(n.to),
   );
-  return (
-    <div className="app-shell">
-      <NotificationBanners />
-      <div className={'navigation-drawer'+(navigationOpen?' is-open':'')}
-        onMouseEnter={()=>setNavigationOpen(true)}
-        onMouseLeave={e=>{if(!e.currentTarget.contains(document.activeElement))setNavigationOpen(false)}}
-        onFocusCapture={()=>setNavigationOpen(true)}
-        onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setNavigationOpen(false)}}
-        onKeyDown={e=>{if(e.key==='Escape'){e.currentTarget.querySelector<HTMLButtonElement>('.navigation-trigger')?.focus();setNavigationOpen(false)}}}>
-      <button className="navigation-trigger" aria-label="Open navigation" aria-expanded={navigationOpen} aria-controls="navigation-panel" title="Hover to open navigation" onClick={()=>setNavigationOpen(true)}><PanelLeft size={16}/></button>
-      <aside id="navigation-panel" className="sidebar" inert={!navigationOpen}>
-        <Link to="/" className="brand">
-          <span className="brand-symbol">
-            <i />
-            <i />
-            <i />
-          </span>
-          <span>
-            sylrak<small>VEHICLE INTELLIGENCE</small>
-          </span>
-        </Link>
-        <div className="workspace-tag">
-          <span className="flag-bars">
-            <i />
-            <i />
-            <i />
-          </span>
-          <div>
-            Delhi workspace<small>Central & East districts</small>
-          </div>
-        </div>
-        <div className="nav-label">OPERATIONS</div>
-        <nav aria-label="Main navigation">
-          {nav.map(({ to, name, icon: Icon }, i) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === "/"}
-              className={({ isActive }) =>
-                "nav-item " + (isActive ? "active" : "")
-              }
-            >
-              <Icon size={18} />
-              <span>{name}</span>
-              {i === 2 && !!snap.data?.summary.active_alerts && (
-                <b>{snap.data.summary.active_alerts}</b>
-              )}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <div id="notification-sound-control"/>
-          <div className="system-status">
-            <span className={"dot " + (connected ? "online" : "offline")} />
-            {connected ? "Local backend connected" : "Reconnecting…"}
-          </div>
-          <span className="sidebar-version">
-            SYLRAK / SIH26127<span>v0.2 · Local prototype</span>
-          </span>
-        </div>
-      </aside>
-      </div>
-      <section className="main-shell" onPointerDown={()=>setNavigationOpen(false)}>
-        <header className="topbar">
-          <div className="breadcrumb">
-            Workspace
-            <ChevronRight size={13} />
-            <strong>
-              {location.pathname.startsWith("/vehicles")
-                ? "Vehicle history"
-                : active?.name || (location.pathname.startsWith('/cases')?'Investigation cases':'Appearance search')}
-            </strong>
-          </div>
-          <form
-            className="global-search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              navigate("/investigations?q=" + encodeURIComponent(query));
-            }}
-          >
-            <Search size={15} />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Find a registration…"
-              aria-label="Search vehicle registration"
-            />
-            <kbd aria-label="Press Enter"><CornerDownLeft size={14}/></kbd>
-          </form>
-          <div className="header-date">
-            {date(wallClock/1000)}
-            <span>TODAY · IST</span>
-          </div>
-          <div className="user-chip"><span>SR</span><div>Local workspace<small>No sign-in required</small></div></div>
-        </header>
-        <div className="demo-strip">
-          <span>
-            <i className="dot amber" />
-            DEMONSTRATION
-          </span>
-          <p>
-            Simulated Delhi cameras and watchlists. Sample recognition runs
-            locally.
-          </p>
-          <span className="network-local">OFFLINE READY</span>
-        </div>
-        {snap.isError ? (
-          <ErrorState error={snap.error} retry={() => snap.refetch()} />
-        ) : !snap.data ? (
-          <Loading />
-        ) : (
-          <>
-            <div className="workspace-toolbar">
+  const isCommand = location.pathname === "/";
+  const toolbar = snap.data ? (
+<div className="workspace-toolbar">
               <div>
-                
-                <h1>
+
+                {isCommand ? <h2>City command</h2> : <h1>
                   {location.pathname === "/"
                     ? "City command"
                     : location.pathname.startsWith("/vehicles")
                       ? "Vehicle investigation"
                       : active?.name || (location.pathname.startsWith('/cases')?'Investigation cases':'Appearance search')}
-                </h1>
+                </h1>}
               </div>
               <div className="demo-controls">
                 <div className="scenario-clock">
@@ -371,7 +258,123 @@ function Workspace({ user }: { user: any }) {
                 </button>
               </div>
             </div>
+  ) : null;
+  return (
+    <div className={"app-shell" + (isCommand ? " command-workspace" : "")}>
+      <NotificationBanners />
+      <div className={'navigation-drawer'+(navigationOpen?' is-open':'')}
+        onMouseEnter={()=>setNavigationOpen(true)}
+        onMouseLeave={e=>{if(!e.currentTarget.contains(document.activeElement))setNavigationOpen(false)}}
+        onFocusCapture={()=>setNavigationOpen(true)}
+        onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget))setNavigationOpen(false)}}
+        onKeyDown={e=>{if(e.key==='Escape'){e.currentTarget.querySelector<HTMLButtonElement>('.navigation-trigger')?.focus();setNavigationOpen(false)}}}>
+      <button className="navigation-trigger" aria-label="Open navigation" aria-expanded={navigationOpen} aria-controls="navigation-panel" title="Hover to open navigation" onClick={()=>setNavigationOpen(true)}><PanelLeft size={16}/></button>
+      <aside id="navigation-panel" className="sidebar" inert={!navigationOpen}>
+        <Link to="/" className="brand">
+          <span className="brand-symbol">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span>
+            sylrak<small>VEHICLE INTELLIGENCE</small>
+          </span>
+        </Link>
+        <div className="workspace-tag">
+          <span className="flag-bars">
+            <i />
+            <i />
+            <i />
+          </span>
+          <div>
+            Delhi workspace<small>Central & East districts</small>
+          </div>
+        </div>
+        <div className="nav-label">OPERATIONS</div>
+        <nav aria-label="Main navigation">
+          {nav.map(({ to, name, icon: Icon }, i) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              className={({ isActive }) =>
+                "nav-item " + (isActive ? "active" : "")
+              }
+            >
+              <Icon size={18} />
+              <span>{name}</span>
+              {i === 2 && !!snap.data?.summary.active_alerts && (
+                <b>{snap.data.summary.active_alerts}</b>
+              )}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="sidebar-bottom">
+          <div id="notification-sound-control"/>
+          <div className="system-status">
+            <span className={"dot " + (connected ? "online" : "offline")} />
+            {connected ? "Local backend connected" : "Reconnecting…"}
+          </div>
+          <span className="sidebar-version">
+            SYLRAK / SIH26127<span>v0.2 · Local prototype</span>
+          </span>
+        </div>
+      </aside>
+      </div>
+      <section className="main-shell" onPointerDown={()=>setNavigationOpen(false)}>
+        <header className="topbar">
+          {isCommand && <><Link className="front-identity" to="/">SylRak<span>DELHI</span></Link><nav className="front-links" aria-label="City overview"><a href="#network" onClick={e=>goToSection(e,'network')}>Network</a><a href="#journey" onClick={e=>goToSection(e,'journey')}>Journey</a><a href="#operations-overview" onClick={e=>goToSection(e,'operations-overview')}>Operations</a></nav></>}
+          <div className="breadcrumb">
+            Workspace
+            <ChevronRight size={13} />
+            <strong>
+              {location.pathname.startsWith("/vehicles")
+                ? "Vehicle history"
+                : active?.name || (location.pathname.startsWith('/cases')?'Investigation cases':'Appearance search')}
+            </strong>
+          </div>
+          <form
+            className="global-search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              navigate("/investigations?q=" + encodeURIComponent(query));
+            }}
+          >
+            <Search size={15} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Find a registration…"
+              aria-label="Search vehicle registration"
+            />
+            <kbd aria-label="Press Enter"><CornerDownLeft size={14}/></kbd>
+          </form>
+          <div className="header-date">
+            {date(wallClock/1000)}
+            <span>TODAY · IST</span>
+          </div>
+          <div className="user-chip"><span>SR</span><div>Local workspace<small>No sign-in required</small></div></div>
+        </header>
+        {!isCommand && <div className="demo-strip">
+          <span>
+            <i className="dot amber" />
+            DEMONSTRATION
+          </span>
+          <p>
+            Simulated Delhi cameras and watchlists. Sample recognition runs
+            locally.
+          </p>
+          <span className="network-local">OFFLINE READY</span>
+        </div>}
+        {snap.isError ? (
+          <ErrorState error={snap.error} retry={() => snap.refetch()} />
+        ) : !snap.data ? (
+          <Loading />
+        ) : (
+          <>
+            {!isCommand && toolbar}
             <Routes>
+              <Route path="/activity" element={<ActivityPage snapshot={snap.data} onEvidence={setEvidence} onAlert={openAlert}/>}/>
               <Route path="/registrations" element={<RegistrationPage/>}/>
               <Route path="/appearance" element={<AppearancePage cameras={snap.data.cameras} onEvidence={setEvidence}/>}/>
               <Route path="/cases" element={<CasesPage/>}/>
@@ -381,6 +384,8 @@ function Workspace({ user }: { user: any }) {
                 element={
                   <Command
                     snapshot={snap.data}
+                    toolbar={toolbar}
+                    today={date(wallClock/1000)}
                     onEvidence={setEvidence}
                     onAlert={openAlert}
                     onRecognize={() => setRecognition(true)}
@@ -477,195 +482,6 @@ function Workspace({ user }: { user: any }) {
           />
         )}
       </Modal>
-    </div>
-  );
-}
-function Command({
-  snapshot,
-  onEvidence,
-  onAlert,
-  onRecognize,
-}: {
-  snapshot: Snapshot;
-  onEvidence: (o: Observation) => void;
-  onAlert: (a: Alert) => void;
-  onRecognize: () => void;
-}) {
-  const [selectedCamera, setSelectedCamera] = useState<string>();
-  const c = snapshot.cameras.find((c) => c.id === selectedCamera);
-  const detail = useGet<any>("/cameras/" + selectedCamera, !!selectedCamera);
-  const target = useGet<Observation>(
-    "/observations/" + snapshot.run.target_observation_id,
-    !!snapshot.run.target_observation_id,
-  );
-  const vehicle = useGet<any>(
-    "/vehicles/" + target.data?.vehicle_id,
-    !!target.data?.vehicle_id,
-  );
-  const metrics = [
-    {
-      label: "Vehicle passages",
-      value: number(snapshot.summary.passages),
-      detail: "Current scenario",
-      icon: Activity,
-    },
-    {
-      label: "Cameras online",
-      value:
-        snapshot.cameras.filter((c) => c.status === "online").length +
-        " / " +
-        snapshot.cameras.length,
-      detail:
-        snapshot.cameras.filter((c) => c.status === "degraded").length +
-        " degraded · " +
-        snapshot.cameras.filter((c) => c.status === "offline").length +
-        " offline",
-      icon: Camera,
-    },
-    {
-      label: "Active alerts",
-      value: snapshot.summary.active_alerts,
-      detail: "Watchlist & route reviews",
-      icon: ShieldAlert,
-    },
-    {
-      label: "Identified registrations",
-      value: number(snapshot.summary.identified),
-      detail: "Accepted plate identities",
-      icon: ScanLine,
-    },
-  ];
-  return (
-    <div className="command-content">
-      <div className="metrics-strip">
-        {metrics.map((m, i) => (
-          <div className="metric" key={m.label}>
-            <div className="metric-heading">
-              {m.label}
-              <m.icon size={16} />
-            </div>
-            <div className={"metric-number " + (i === 2 ? "red-text" : "")}>
-              {m.value}
-            </div>
-            <div className="metric-detail">
-              {i === 2 && <i className="dot red" />}
-              {m.detail}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="command-grid">
-        <section className="panel map-panel">
-          <div className="panel-heading">
-            <h2>
-              Camera network<span className="panel-counter">12</span>
-            </h2>
-            <div className="panel-right">
-              <span className="dot online" />
-              Local replay
-            </div>
-          </div>
-          <MapView
-            cameras={snapshot.cameras}
-            selectedCamera={selectedCamera}
-            onCamera={setSelectedCamera}
-            observations={vehicle.data?.observations || []}
-          />
-          {c && (
-            <div className="camera-summary">
-              <div>
-                <span className="mono camera-code">{c.id}</span>
-                <strong>{c.name}</strong>
-                <span>
-                  {c.direction} · {c.status}
-                </span>
-              </div>
-              <button
-                className="text-button"
-                onClick={() => setSelectedCamera(undefined)}
-              >
-                Clear selection
-                <X size={14} />
-              </button>
-            </div>
-          )}
-        </section>
-        <aside className="panel alert-panel">
-          <div className="panel-heading">
-            <h2>
-              Priority alerts
-              <span className="panel-counter red-counter">
-                {snapshot.summary.active_alerts}
-              </span>
-            </h2>
-            <Link
-              to="/alerts"
-              className="icon-btn"
-              aria-label="View all alerts"
-            >
-              <ArrowUpRight size={17} />
-            </Link>
-          </div>
-          <div className="alerts-scroll">
-            {snapshot.alerts.length ? (
-              snapshot.alerts.map((a) => (
-                <AlertCard key={a.id} alert={a} onOpen={() => onAlert(a)} />
-              ))
-            ) : (
-              <Empty title="No active alerts">
-                New watchlist matches appear here.
-              </Empty>
-            )}
-          </div>
-          <div className="target-prompt">
-            <div className="eyebrow">TARGET VEHICLE DEMO</div>
-            {snapshot.run.target_observation_id ? (
-              <>
-                <Plate value={snapshot.run.target_plate} small />
-                <p>
-                  Recognition complete. Start replay to follow the next three
-                  camera sightings.
-                </p>
-              </>
-            ) : (
-              <>
-                <p>
-                  Recognize a real Indian plate, then follow its journey across
-                  four cameras.
-                </p>
-                <button className="text-button" onClick={onRecognize}>
-                  Process target sample
-                  <ArrowUpRight size={15} />
-                </button>
-              </>
-            )}
-          </div>
-        </aside>
-      </div>
-      <section className="panel recent-panel">
-        <div className="panel-heading">
-          <h2>
-            {c ? "Sightings at " + c.name : "Recent sightings"}
-            <span className="panel-counter">
-              {c
-                ? detail.data?.observations.length || 0
-                : snapshot.recent.length}
-            </span>
-          </h2>
-          <Link
-            className="text-button"
-            to={"/investigations" + (c ? "?camera=" + c.id : "")}
-          >
-            Search history
-            <ArrowUpRight size={15} />
-          </Link>
-        </div>
-        <ObservationTable
-          items={c ? detail.data?.observations || [] : snapshot.recent}
-          onEvidence={onEvidence}
-          compact
-        />
-      </section>
     </div>
   );
 }

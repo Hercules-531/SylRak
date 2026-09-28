@@ -678,7 +678,7 @@ export function VehiclePage({
           <div className="trajectory-caption">
             <RouteIcon size={16} />
             <span>
-              Dashed lines connect recorded cameras. The route between sightings
+                Solid lines connect recorded cameras. The route between sightings
               is estimated.
             </span>
           </div>

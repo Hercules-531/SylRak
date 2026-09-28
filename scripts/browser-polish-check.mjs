@@ -28,7 +28,7 @@ try{
  await page.keyboard.press('Escape');
  await page.waitForFunction(()=>document.querySelector('.navigation-trigger').getAttribute('aria-expanded')==='false');
  await page.locator('.global-search input').click();
- assert.ok((await page.locator('.header-date').innerText()).includes(await page.evaluate(()=>new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric'}).format(new Date()))));
+ assert.ok((await page.locator('.command-today').innerText()).includes(await page.evaluate(()=>new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric'}).format(new Date()))));
  assert.ok(!malformed.test(await page.locator('body').innerText()));
  await page.screenshot({path:'artifacts/qa/polish/command-1440.png'});
  checks.push('OLED background, current IST date, repaired symbols, hover/focus/Escape navigation without map shift');

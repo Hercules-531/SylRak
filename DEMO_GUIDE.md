@@ -1,17 +1,19 @@
 # SylRak three-minute demonstration
 
+The opening view is the dimensional Delhi atlas. Scroll to reveal the network, then follow the recorded journey. Search registrations in the top-right corner. Hover over the left edge (or tap the navigation button) for operational workspaces. **Operations** opens the overview tabs and recognition/replay controls. Full recent sightings and priority-alert tables are now in **Activity log**. Solid trajectory lines are explicitly estimated connections, not verified road routes. Use the map +/− controls to zoom; the wheel scrolls the page. Reduced-motion mode and mobile use a shorter, direct flow.
+
 ## 1. Query by description — 35 seconds
 
 1. Open **Investigations** and select **Vehicle description**.
 2. Click the prepared query: **White · Car · Mid-size · Honda City**.
 3. Open registration **DL8CAF2041**.
-4. Point out the latest observed location, dashed estimated path, full observation timeline, descriptive metadata, and demonstration watchlist alert.
+4. Point out the latest observed location, solid estimated connections, full observation timeline, descriptive metadata, and demonstration watchlist alert.
 
 The make/model and size are explicitly labeled seeded demonstration metadata.
 
 ## 2. Real recognition and latest path — 90 seconds
 
-1. Return to **Command** and click **Recognize vehicle**.
+1. Return to **Command**, select **Operations**, and click **Recognize vehicle**.
 2. Keep target sample `sample-027` and camera `C01 · Barakhamba Road`; click **Run recognition**.
 3. Show the source photo, detected crop, OCR result **KL22L9038**, confidence, and **Sample inference** label.
 4. Close the panel, set replay to `60×`, and press Play. The vehicle appears at Mandi House, ITO, and Akshardham approach. The replay takes about 24 seconds.
