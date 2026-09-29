@@ -33,7 +33,8 @@ function style(oled = false): any {
     roads_label_major: "#9cabb8",
     subplace_label: "#a2aeb9",
     city_label: "#c1cad2",
-    ...(oled ? {background:'#000000',earth:'#090c10',water:'#071722',park_a:'#0c1714',park_b:'#101c17',buildings:'#11171d',minor_a:'#252e37',minor_b:'#252e37',major:'#424e5b',highway:'#576573'} : {}),
+    // Background matches earth so zoomed-out views fade past the offline extract instead of showing a hard edge.
+    ...(oled ? {background:'#090c10',earth:'#090c10',water:'#071722',park_a:'#0c1714',park_b:'#101c17',buildings:'#11171d',minor_a:'#252e37',minor_b:'#252e37',major:'#424e5b',highway:'#576573'} : {}),
   };
   return {
     version: 8,
