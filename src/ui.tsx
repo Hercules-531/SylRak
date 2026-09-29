@@ -404,7 +404,7 @@ export function ObservationTable({
             <th>Seen at · IST</th>
             <th>OCR score</th>
             {showFeatures&&<th>Logged features</th>}
-            {showReview&&<th>Experimental review</th>}
+            {showReview&&<th>Suspicion score</th>}
             <th>Source</th>
             <th />
           </tr>

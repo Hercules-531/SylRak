@@ -47,7 +47,7 @@ def theft_review(s, observation):
     enough=bool(reasons) or accepted or a.get('visibility')=='clear'
     score=min(95,sum(r['points'] for r in reasons)) if enough else None
     return {'score':score,'scale':100,'experimental':True,'calibrated':False,
-            'label':'Theft review score','warning':WARNING,'reasons':reasons,
+            'label':'Suspicion score','warning':WARNING,'reasons':reasons,
             'band':'Insufficient evidence' if score is None else 'Elevated review' if score>=60 else 'Review signals' if score>0 else 'No listed signals',
             'accepted_history_count':len(history) if accepted else 0,'as_of':o.observed_at,
             'scope':'This candidate and accepted observations in this run, over the preceding 20 scenario minutes.',
