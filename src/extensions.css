@@ -11,3 +11,5 @@
 .time-presets button[aria-pressed=true]{background:#1d2e45;border-color:#4a6d96;color:#cfe0f7}
 .area-cameras{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;font-size:12px;color:#b9c8da;background:#122031;border:1px solid #2f4660;border-radius:4px}
 .area-cameras svg{margin-top:2px;color:#7aacfa}
+.jev-summary{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:8px 0;padding:0}
+.jev-summary li{padding:3px 9px;font-size:12px;border:1px solid #3a4c63;border-radius:999px;background:#162232;color:#cfe0f7;text-transform:capitalize}

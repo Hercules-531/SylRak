@@ -48,7 +48,7 @@ try{
  await page.screenshot({path:'artifacts/qa/polish/appearance-1440.png'});
  checks.push('One-click cached Jev classification applies filters and displays ranked results; no additional online request');
  await page.goto(base+'/investigations?q=DL8CAF2041');
- await page.getByRole('columnheader',{name:'Experimental review',exact:true}).waitFor();
+ await page.getByRole('columnheader',{name:'Suspicion score',exact:true}).waitFor();
  await page.locator('.data-table .review-assessment summary').first().click();
  await page.locator('.plate-link').first().click();
  await page.locator('.vehicle-review .review-assessment summary').click();

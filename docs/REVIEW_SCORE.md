@@ -1,4 +1,6 @@
-# Experimental theft-review score
+# Experimental suspicion score
+
+Shown in the interface as **Suspicion score** (previously "theft review score"). API field names (`theft_review`) are unchanged.
 
 This is a transparent rule-based review aid, not a trained theft classifier or a calibrated probability. The warning is displayed on vehicle search results and vehicle investigations. Low or zero scores do not clear a vehicle. No action, alert, association, or priority change is performed by scoring.
 
