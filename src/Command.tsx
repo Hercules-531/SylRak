@@ -25,8 +25,13 @@ export default function Command({snapshot,toolbar,today,onEvidence,onAlert,onRec
  const lastStep=useRef(-1);
  const seed=useGet<any>('/observations?plate=DL4CAB6672&run_id=current&limit=1');
  const target=useGet<Observation>('/observations/'+snapshot.run.target_observation_id,!!snapshot.run.target_observation_id);
- const lead=target.data?.vehicle_id?target.data:seed.data?.items?.[0];
- const vehicle=useGet<any>('/vehicles/'+lead?.vehicle_id+'?run_id='+lead?.run_id,!!lead?.vehicle_id);
+ const seedLead=seed.data?.items?.[0];
+ const targetVehicle=useGet<any>('/vehicles/'+target.data?.vehicle_id+'?run_id='+target.data?.run_id,!!target.data?.vehicle_id);
+ const seedVehicle=useGet<any>('/vehicles/'+seedLead?.vehicle_id+'?run_id='+seedLead?.run_id,!!seedLead?.vehicle_id);
+ // A trajectory needs two sightings; keep the seeded journey until the recognised vehicle's replay adds a second.
+ const followTarget=(targetVehicle.data?.observations?.filter((o:Observation)=>o.status==='accepted').length||0)>1;
+ const lead=followTarget?target.data:seedLead;
+ const vehicle=followTarget?targetVehicle:seedVehicle;
  const traffic=useGet<any>('/traffic');
  const observations=useMemo<Observation[]>(()=>vehicle.data?.observations?.filter((o:Observation)=>o.status==='accepted').sort((a:Observation,b:Observation)=>a.observed_at-b.observed_at)||noObservations,[vehicle.data]);
  const stop=observations[Math.min(activeStop,Math.max(0,observations.length-1))];
@@ -68,7 +73,7 @@ export default function Command({snapshot,toolbar,today,onEvidence,onAlert,onRec
     <div className="atlas-journey-heading"><h2 id="journey-title"><span>Separate sightings.</span><strong>One recorded journey.</strong></h2><p>Follow the observations.<br/>Keep the gaps in view.</p></div>
     {vehicle.isError?<ErrorState error={vehicle.error} retry={()=>vehicle.refetch()}/>:vehicle.isLoading||seed.isLoading?<Loading/>:!observations.length?<Empty title="No recorded journey yet">Search a vehicle or process a sample to begin.</Empty>:<div className="atlas-journey-body">
      <div className="atlas-journey-evidence">
-      <div className="atlas-journey-identity"><Plate value={selectedPlate}/><span>{target.data?.vehicle_id?'Recognition + simulated replay':'Seeded demonstration journey'}</span></div>
+      <div className="atlas-journey-identity"><Plate value={selectedPlate}/><span>{followTarget?'Recognition + simulated replay':'Seeded demonstration journey'}</span></div>
       <div className="atlas-stop-heading"><span className="mono">{String(activeStop+1).padStart(2,'0')} / {String(observations.length).padStart(2,'0')}</span><span className="mono">{stop?time(stop.observed_at,true):'—'} IST</span></div>
       <div className="atlas-stop-copy" key={stop?.id}><h3>{stop?.camera.name}</h3><p>{stop?.camera.direction} · {stop?.camera_id}</p><p>{stop?.source_kind==='real_inference'?'Real sample recognition. Plate and evidence are available for inspection.':'Recorded at a simulated camera location. This is an observation, not a continuously known position.'}</p></div>
       <div className="atlas-stop-selector" aria-label="Recorded camera observations">{observations.map((o,i)=><button key={o.id} aria-label={'Show sighting '+(i+1)+' at '+o.camera.name} aria-pressed={i===activeStop} onClick={()=>step(i)}><span>{String(i+1).padStart(2,'0')}</span><i className={i<=activeStop?'passed':''}/></button>)}</div>
