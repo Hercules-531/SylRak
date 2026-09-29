@@ -39,6 +39,7 @@ import Command from "./Command";
 import ActivityPage from './Activity';
 import {goToSection} from './sceneMotion';
 import {RegistrationPage, AppearancePage, CasesPage, CasePage, NotificationBanners} from './extensions';
+import {SightingMarks} from './marks';
 import {
   Modal,
   EvidenceDetails,
@@ -397,6 +398,7 @@ function Workspace({ user }: { user: any }) {
                 element={
                   <Investigations
                     cameras={snap.data.cameras}
+                    clock={snap.data.run.clock}
                     onEvidence={setEvidence}
                   />
                 }
@@ -481,6 +483,7 @@ function Workspace({ user }: { user: any }) {
             onReviewed={() => setEvidence(null)}
           />
         )}
+        {evidence && <SightingMarks key={evidence.id} observation={evidence} />}
       </Modal>
     </div>
   );

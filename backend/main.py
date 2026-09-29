@@ -15,6 +15,8 @@ from .auth import current_user, admin_user, audit
 from .service import *
 from .seed import seed, sample_manifest, target_sample
 from .extensions import router as extension_router, decorated_alert, alert_sort
+from .marks import router as marks_router, feature_filter, features_for
+from .geo import REGIONS, distance_km
 from .review_score import theft_review
 
 pool=None
@@ -183,7 +185,7 @@ def camera_update(camera_id:str,body:CameraUpdate,user=Depends(admin_user)):
         audit(s,user,'camera.status',camera_id,body.model_dump());emit(s,'camera.updated',{'id':camera_id});return row_dict(c)
 
 @app.get('/api/v1/observations')
-def observations(plate:str='',camera:str='',vehicle_type:str='',color:str='',size_class:str='',make_model:str='',body_style:str='',status:str='',watchlist_status:str='',alert_status:str='',from_time:float|None=None,to_time:float|None=None,run_id:str='',include_review:bool=False,offset:int=Query(0,ge=0),limit:int=Query(30,ge=1,le=100),user=Depends(current_user)):
+def observations(plate:str='',camera:str='',vehicle_type:str='',color:str='',size_class:str='',make_model:str='',body_style:str='',status:str='',watchlist_status:str='',alert_status:str='',from_time:float|None=None,to_time:float|None=None,run_id:str='',region:str='',near:str='',radius_km:float=Query(1.5,gt=0,le=20),feature_type:str='',feature_part:str='',feature:str='',include_review:bool=False,include_features:bool=False,offset:int=Query(0,ge=0),limit:int=Query(30,ge=1,le=100),user=Depends(current_user)):
     with Session.begin() as s:
         run=get_run(s);q=select(Observation)
         if run_id:q=q.where(Observation.run_id==(run.id if run_id=='current' else run_id))
@@ -202,12 +204,34 @@ def observations(plate:str='',camera:str='',vehicle_type:str='',color:str='',siz
             q=q.where(Observation.plate.in_(plates))
         if alert_status:
             q=q.where(select(Alert.id).where(Alert.status==alert_status,Alert.run_id==Observation.run_id,or_(Alert.vehicle_id==Observation.vehicle_id,Alert.observation_id==Observation.id,Alert.latest_observation_id==Observation.id)).exists())
+        if feature_type or feature_part or feature.strip():q=q.where(feature_filter(feature_type,feature_part,feature))
+        area=search_area(s,region,near,radius_km)
+        if area is not None:q=q.where(Observation.camera_id.in_(area))
         total=s.scalar(select(func.count()).select_from(q.subquery()))
         ordering=[Observation.observed_at.desc(),Observation.id]
         if include_review:ordering=[case((Observation.status=='accepted',0),else_=1),Observation.ocr_confidence.desc(),*ordering]
         items=list(s.scalars(q.order_by(*ordering).offset(offset).limit(limit)))
-        audit(s,user,'search','observations',{'plate':plate,'camera':camera,'vehicle_type':vehicle_type,'color':color,'size_class':size_class,'make_model':make_model,'from':from_time,'to':to_time,'results':total})
-        return {'items':[{**observation_dict(s,o),**({'theft_review':theft_review(s,o)} if include_review else {})} for o in items],'total':total,'offset':offset,'limit':limit}
+        audit(s,user,'search','observations',{'plate':plate,'camera':camera,'vehicle_type':vehicle_type,'color':color,'size_class':size_class,'make_model':make_model,'feature_type':feature_type,'feature_part':feature_part,'feature':feature,'region':region,'near':near,'radius_km':radius_km if near else None,'from':from_time,'to':to_time,'results':total})
+        return {'items':[{**observation_dict(s,o),**({'theft_review':theft_review(s,o)} if include_review else {}),**({'features':features_for(s,o,feature_type,feature_part,feature)} if include_features else {})} for o in items],'total':total,'offset':offset,'limit':limit,'area_cameras':sorted(area) if area is not None else None}
+
+def search_area(s,region,near,radius_km):
+    """Camera ids inside a named region and/or a radius around a camera; None means every camera."""
+    area=None
+    if region:
+        preset=next((r for r in REGIONS if r['id']==region),None)
+        if not preset:raise HTTPException(422,'Unknown search region.')
+        area=set(preset['cameras'])
+    if near:
+        centre=s.get(Camera,near)
+        if not centre:raise HTTPException(422,'Unknown camera for the search radius.')
+        within={c.id for c in s.scalars(select(Camera)) if distance_km(centre,c)<=radius_km}
+        area=within if area is None else area&within
+    return area
+
+@app.get('/api/v1/regions')
+def regions(user=Depends(current_user)):
+    return REGIONS
+
 @app.get('/api/v1/observations/{observation_id}')
 def observation_detail(observation_id:str,user=Depends(current_user)):
     with Session.begin() as s:
@@ -434,6 +458,7 @@ def evidence_file(evidence_id:str,kind:Literal['original','plate','vehicle'],use
 
 (ASSETS/'map').mkdir(parents=True,exist_ok=True)
 app.include_router(extension_router)
+app.include_router(marks_router)
 from .jev import router as jev_router
 app.include_router(jev_router)
 app.mount('/map-assets',StaticFiles(directory=ASSETS/'map'),name='map-assets')

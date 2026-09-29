@@ -50,6 +50,8 @@ Click **Search with Jev**. Its filters are applied automatically and the matchin
 
 **Quiet alerts:** open Alerts and use **Vehicle alert controls → Mute for 15 minutes**. Select the **Muted** filter to retrieve it; unmute it afterward. Administrator “Stop alerts for everyone” also dismisses current alerts. Evidence continues accumulating.
 
+**Abnormal features:** open **Investigations → Vehicle description** and click **White car · Sticker on rear glass**: only `DL8CAF2041` (Ganesh sticker) and `DL4CAB6672` ("Baby on board" sticker) remain, and the **Logged features** column shows why. Open the **Camera feasibility guide** to explain why stickers and large damage work on traffic cameras while a 1 cm windshield chip needs a close-up. Open `DL8CAF2041`: its sticker, cracked tail light, and suggested windshield chip are listed with the camera where each was seen. Click **Log on selected sighting**, add "Taped-up left headlight", broken part, headlight, 22 cm, then search the feature description "taped" to show it is immediately searchable. Unplated sightings, such as the white Dzire with a cab operator decal, remain findable by feature alone. A shared feature narrows the search; it does not establish identity.
+
 **Independent registration:** open Registration lookup and click **DL10CZ7788**. This synthetic registry entry has never been seen by a camera. Search `DL99ZZ9999` to demonstrate the honest unavailable state.
 
 If asked about accuracy, say: “The demo target is recognized correctly. Our broader exploratory result is 7/31 exact plates, or 22.6%, so 90% is a research target, not a demonstrated result.” No live police database or live registration integration is connected.
