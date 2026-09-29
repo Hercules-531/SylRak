@@ -379,11 +379,13 @@ export function ObservationTable({
   onEvidence,
   compact = false,
   showReview = false,
+  showFeatures = false,
 }: {
   items: Observation[];
   onEvidence: (o: Observation) => void;
   compact?: boolean;
   showReview?: boolean;
+  showFeatures?: boolean;
 }) {
   if (!items.length)
     return (
@@ -401,6 +403,7 @@ export function ObservationTable({
             <th>Camera / location</th>
             <th>Seen at · IST</th>
             <th>OCR score</th>
+            {showFeatures&&<th>Logged features</th>}
             {showReview&&<th>Experimental review</th>}
             <th>Source</th>
             <th />
@@ -453,6 +456,7 @@ export function ObservationTable({
                   {pct(o.ocr_confidence)}
                 </span>
               </td>
+              {showFeatures&&<td><FeatureChips features={(o as any).features}/></td>}
               {showReview&&<td><ReviewScore value={(o as any).theft_review} compact/></td>}
               <td>
                 <SourceBadge source={o.source_kind} />
@@ -512,4 +516,8 @@ export function AlertCard({
       </div>
     </button>
   );
+}
+export function FeatureChips({features}:{features?:any[]}){
+ if(!features?.length)return <span className="muted">—</span>;
+ return <span className="feature-chips">{features.slice(0,2).map(f=><span key={f.id} className={'feature-chip '+f.status} title={`${f.label} · ${f.category} · ${f.part}${f.status==='suggested'?' · suggested, not confirmed':''}`}>{f.label}</span>)}{features.length>2&&<span className="muted">+{features.length-2}</span>}</span>
 }

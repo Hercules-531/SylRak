@@ -14,6 +14,13 @@ CAMERAS=[
  ('C11','Tilak Bridge','Tilak Marg · Tilak Bridge',28.6235,77.2400,'North','online'),
  ('C12','Indraprastha','Ring Road · Indraprastha',28.6205,77.2548,'North','offline'),
 ]
+# Named search areas over the simulated network; each camera belongs to exactly one.
+REGIONS=[
+ {'id':'connaught-place','name':'Connaught Place','cameras':['C01','C07']},
+ {'id':'mandi-house-ito','name':'Mandi House · ITO · Tilak Bridge','cameras':['C02','C03','C11']},
+ {'id':'india-gate-pragati','name':'India Gate · Pragati Maidan · Ring Road','cameras':['C05','C06','C12']},
+ {'id':'east-delhi','name':'East Delhi · Vikas Marg & Akshardham','cameras':['C04','C08','C09','C10']},
+]
 CORRIDORS=[{'from':'C01','to':'C02','km':1.5,'baseline_seconds':240}, {'from':'C02','to':'C03','km':1.2,'baseline_seconds':180}, {'from':'C03','to':'C04','km':5.3,'baseline_seconds':480}, {'from':'C08','to':'C09','km':1.5,'baseline_seconds':180}, {'from':'C09','to':'C10','km':2.0,'baseline_seconds':240}]
 def distance_km(a,b):
     lat1,lon1,lat2,lon2=map(radians,[a.lat,a.lon,b.lat,b.lon])

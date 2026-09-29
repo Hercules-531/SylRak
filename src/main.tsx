@@ -12,6 +12,7 @@ import './styles.css';
 import './extensions.css';
 import './oled.css';
 import './command.css';
+import './marks.css';
 import App from './App';
 const client=new QueryClient({defaultOptions:{queries:{retry:1,staleTime:2000,refetchOnWindowFocus:false}}});
 createRoot(document.getElementById('root')!).render(<React.StrictMode><QueryClientProvider client={client}><BrowserRouter><App/></BrowserRouter></QueryClientProvider></React.StrictMode>);

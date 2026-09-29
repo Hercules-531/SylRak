@@ -191,12 +191,34 @@ class AppearanceWatch(Base):
     active: Mapped[bool] = mapped_column(default=True)
     expires_at: Mapped[float]
 
+class VehicleMark(Base):
+    """One visible abnormal feature on one sighting, indexed for cross-camera search."""
+    __tablename__='vehicle_marks'
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=uid)
+    observation_id: Mapped[str] = mapped_column(ForeignKey('observations.id'), index=True)
+    vehicle_id: Mapped[str|None] = mapped_column(ForeignKey('vehicles.id'), index=True)
+    run_id: Mapped[str] = mapped_column(index=True)
+    category: Mapped[str]
+    part: Mapped[str]
+    label: Mapped[str]
+    label_key: Mapped[str] = mapped_column(index=True)
+    size_cm: Mapped[float|None]
+    detectability: Mapped[str] = mapped_column(index=True)
+    origin: Mapped[str]
+    status: Mapped[str] = mapped_column(default='confirmed', index=True)
+    notes: Mapped[str] = mapped_column(default='')
+    created_by: Mapped[str]
+    created_at: Mapped[float] = mapped_column(default=time.time)
+    history: Mapped[list] = mapped_column(JSON, default=list)
+    __table_args__=(Index('ix_mark_category_part','category','part'),Index('ix_mark_observation_label','observation_id','label_key',unique=True))
+
 def migrate():
     # Versioned, additive baseline; migrations run before serving requests.
     Base.metadata.create_all(engine)
     with Session.begin() as s:
         s.execute(insert(SchemaVersion).values(version=1,applied_at=time.time()).on_conflict_do_nothing())
         s.execute(insert(SchemaVersion).values(version=2,applied_at=time.time()).on_conflict_do_nothing())
+        s.execute(insert(SchemaVersion).values(version=3,applied_at=time.time()).on_conflict_do_nothing())
     # Additive migration for existing prototype databases.
     with engine.begin() as c:
         c.exec_driver_sql('CREATE UNIQUE INDEX IF NOT EXISTS ix_observation_track ON observations (run_id,camera_id,track_id)')

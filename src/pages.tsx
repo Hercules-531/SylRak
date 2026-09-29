@@ -1,6 +1,7 @@
 import ReviewScore,{ReviewWarning} from './ReviewScore';
 import { useEffect, useState, type FormEvent } from "react";
 import {NotificationControls} from './extensions';
+import {VehicleMarks, FeatureFilters} from './marks';
 import {
   Link,
   useNavigate,
@@ -69,11 +70,142 @@ function QueryState({ query }: { query: any }) {
   );
 }
 
+// Datetime-local value in IST for a scenario timestamp.
+const istInput = (seconds: number) =>
+  new Date((seconds + 19800) * 1000).toISOString().slice(0, 16);
+function SearchAreaTime({
+  form,
+  cameras,
+  clock,
+  areaCameras,
+  onChange,
+}: {
+  form: Record<string, string>;
+  cameras: Camera[];
+  clock: number;
+  areaCameras?: string[] | null;
+  onChange: (patch: Record<string, string>) => void;
+}) {
+  const regions = useGet<any[]>("/regions");
+  const names = Object.fromEntries(cameras.map((c) => [c.id, c.name]));
+  const cameraOptions = cameras.map((c) => (
+    <option key={c.id} value={c.id}>
+      {c.id} · {c.name}
+    </option>
+  ));
+  return (
+    <div className="area-time">
+      <div className="area-time-heading">
+        <span className="eyebrow">SEARCH AREA & TIME</span>
+        <p>Only sightings from cameras in this area and time window are searched.</p>
+      </div>
+      <div className="area-time-grid">
+        <label>
+          Area
+          <select
+            aria-label="Search area"
+            value={form.area}
+            onChange={(e) =>
+              onChange({ area: e.target.value, region: "", near: "", camera: "", radius_km: "1.5" })
+            }
+          >
+            <option value="">All monitored cameras</option>
+            <option value="region">Named region</option>
+            <option value="near">Around a camera</option>
+            <option value="camera">Single camera</option>
+          </select>
+        </label>
+        {form.area === "region" && (
+          <label>
+            Region
+            <select aria-label="Search region" value={form.region} onChange={(e) => onChange({ region: e.target.value })}>
+              <option value="">Choose a region</option>
+              {regions.data?.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {form.area === "near" && (
+          <>
+            <label>
+              Centre camera
+              <select aria-label="Centre camera" value={form.near} onChange={(e) => onChange({ near: e.target.value })}>
+                <option value="">Choose a camera</option>
+                {cameraOptions}
+              </select>
+            </label>
+            <label>
+              Radius
+              <select aria-label="Search radius" value={form.radius_km || "1.5"} onChange={(e) => onChange({ radius_km: e.target.value })}>
+                {["0.5", "1", "1.5", "2", "3", "5"].map((km) => (
+                  <option key={km} value={km}>
+                    {km} km
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        )}
+        {form.area === "camera" && (
+          <label>
+            Camera
+            <select aria-label="Single camera" value={form.camera} onChange={(e) => onChange({ camera: e.target.value })}>
+              <option value="">Choose a camera</option>
+              {cameraOptions}
+            </select>
+          </label>
+        )}
+        <label>
+          From · IST
+          <input type="datetime-local" value={form.from} onChange={(e) => onChange({ from: e.target.value })} />
+        </label>
+        <label>
+          Until · IST
+          <input type="datetime-local" value={form.to} onChange={(e) => onChange({ to: e.target.value })} />
+        </label>
+      </div>
+      <div className="time-presets">
+        <span>Scenario time</span>
+        {[15, 60, 180].map((minutes) => (
+          <button
+            type="button"
+            key={minutes}
+            aria-pressed={form.from === istInput(clock - minutes * 60) && form.to === istInput(clock)}
+            onClick={() => onChange({ from: istInput(clock - minutes * 60), to: istInput(clock) })}
+          >
+            Last {minutes < 60 ? minutes + " min" : minutes === 60 ? "hour" : minutes / 60 + " hours"}
+          </button>
+        ))}
+        <button type="button" aria-pressed={!form.from && !form.to} onClick={() => onChange({ from: "", to: "" })}>
+          Any time
+        </button>
+      </div>
+      {areaCameras && (
+        <div className="area-cameras">
+          <MapPin size={14} />
+          {areaCameras.length ? (
+            <span>
+              Searching {areaCameras.length} camera{areaCameras.length === 1 ? "" : "s"}:{" "}
+              {areaCameras.map((id) => `${id} ${names[id] || ""}`.trim()).join(" · ")}
+            </span>
+          ) : (
+            <span>No cameras in this area. Widen the radius or choose another region.</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 export function Investigations({
   cameras,
+  clock,
   onEvidence,
 }: {
   cameras: Camera[];
+  clock: number;
   onEvidence: (o: Observation) => void;
 }) {
   const [params, setParams] = useSearchParams();
@@ -82,12 +214,19 @@ export function Investigations({
   );
   const [form, setForm] = useState<Record<string, string>>({
     plate: params.get("q") || "",
+    area: params.get("camera") ? "camera" : "",
+    region: "",
+    near: "",
+    radius_km: "1.5",
     camera: params.get("camera") || "",
     vehicle_type: "",
     color: "",
     size_class: "",
     make_model: "",
     body_style: "",
+    feature_type: "",
+    feature_part: "",
+    feature: "",
     status: "",
     watchlist_status: "",
     alert_status: "",
@@ -102,6 +241,7 @@ export function Investigations({
       ...form,
       plate: params.get("q") || "",
       camera: params.get("camera") || "",
+      area: params.get("camera") ? "camera" : form.area,
     };
     setForm(value);
     setApplied(value);
@@ -109,13 +249,14 @@ export function Investigations({
   }, [params.get("q"), params.get("camera")]);
   const queryParams = new URLSearchParams();
   Object.entries(applied).forEach(([k, v]) => {
-    if (v && k !== "from" && k !== "to") queryParams.set(k, v);
+    if (v && k !== "from" && k !== "to" && k !== "area") queryParams.set(k, v);
   });
   if (applied.from) queryParams.set("from_time", String(stamp(applied.from)));
   if (applied.to) queryParams.set("to_time", String(stamp(applied.to)));
   queryParams.set("offset", String(offset));
   queryParams.set("limit", "25");
   queryParams.set("include_review", "true");
+  if (mode === "description") queryParams.set("include_features", "true");
   const result = useGet<any>("/observations?" + queryParams);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const submit = (e: FormEvent) => {
@@ -126,6 +267,7 @@ export function Investigations({
   const clear = () => {
     const empty = Object.fromEntries(Object.keys(form).map((k) => [k, ""]));
     empty.run_id = "current";
+    empty.radius_km = "1.5";
     setForm(empty);
     setApplied(empty);
     setOffset(0);
@@ -251,6 +393,17 @@ export function Investigations({
                 Find vehicles
               </button>
             </div>
+            <FeatureFilters
+              value={{ feature_type: form.feature_type, feature_part: form.feature_part, feature: form.feature }}
+              onChange={(patch, apply) => {
+                const value = { ...form, ...patch };
+                setForm(value);
+                if (apply) {
+                  setApplied(value);
+                  setOffset(0);
+                }
+              }}
+            />
             <div className="demo-query">
               <span>DEMO QUERY</span>
               <button
@@ -273,45 +426,50 @@ export function Investigations({
                 White · Car · Mid-size · Honda City
                 <ArrowUpRight size={14} />
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const value = {
+                    ...form,
+                    plate: "",
+                    vehicle_type: "car",
+                    color: "white",
+                    size_class: "",
+                    make_model: "",
+                    feature_type: "sticker",
+                    feature_part: "rear glass",
+                    feature: "",
+                    run_id: "current",
+                  };
+                  setForm(value);
+                  setApplied(value);
+                  setOffset(0);
+                }}
+              >
+                White car · Sticker on rear glass
+                <ArrowUpRight size={14} />
+              </button>
               <small>
                 Attributes are labeled synthetic metadata for this prototype.
               </small>
             </div>
           </>
         )}
+        <SearchAreaTime
+          form={form}
+          cameras={cameras}
+          clock={clock}
+          areaCameras={result.data?.area_cameras}
+          onChange={(patch) => {
+            const value = { ...form, ...patch };
+            setForm(value);
+            setApplied(value);
+            setOffset(0);
+          }}
+        />
         <details className="advanced-filters">
           <summary>More filters</summary>
           <div className="filter-grid">
-            <label>
-              Camera
-              <select
-                value={form.camera}
-                onChange={(e) => set("camera", e.target.value)}
-              >
-                <option value="">All cameras</option>
-                {cameras.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.id} · {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              From · IST
-              <input
-                type="datetime-local"
-                value={form.from}
-                onChange={(e) => set("from", e.target.value)}
-              />
-            </label>
-            <label>
-              Until · IST
-              <input
-                type="datetime-local"
-                value={form.to}
-                onChange={(e) => set("to", e.target.value)}
-              />
-            </label>
             <label>
               Body style
               <select
@@ -406,7 +564,7 @@ export function Investigations({
           </span>
         </div>
         {result.data ? (
-          <><ReviewWarning/><ObservationTable items={result.data.items} onEvidence={onEvidence} showReview /></>
+          <><ReviewWarning/><ObservationTable items={result.data.items} onEvidence={onEvidence} showReview showFeatures={mode === "description"} /></>
         ) : (
           <QueryState query={result} />
         )}
@@ -544,6 +702,7 @@ export function VehiclePage({
         <div><span>Size / body</span><strong>{data.attributes?.size_class || "unknown"} · {data.attributes?.body_style || "unknown"}</strong></div>
         <small>Model and size are seeded demonstration metadata unless the evidence says otherwise.</small>
       </div>
+      <VehicleMarks vehicleId={data.id} current={current} />
       {alert && (
         <div
           className={

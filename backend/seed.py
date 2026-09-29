@@ -6,6 +6,7 @@ from .geo import CAMERAS
 from .config import ASSETS, SCENARIO_START
 from .service import record_observation, emit
 from .auth import init_users
+from .marks import mark_fixtures
 
 def sample_manifest():
     path=ASSETS/'samples'/'manifest.json'
@@ -81,3 +82,4 @@ def appearance_fixtures(s,run):
                 'simulated':True,'confidence_origin':'synthetic fixture','make_model':model,
                 'attribute_origin':'seeded demonstration metadata','size_class':'mid-size','body_style':'sedan' if 'Dzire' in model else 'unknown',
                 'appearance':{'colors':colors,'regions':regions,'pattern':pattern,'features':features,'visibility':visibility,'plate_visibility':plate_visibility,'origin':'demo fixture'}}))
+    mark_fixtures(s,run)
