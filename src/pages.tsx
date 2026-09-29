@@ -2,6 +2,7 @@ import ReviewScore,{ReviewWarning} from './ReviewScore';
 import { useEffect, useState, type FormEvent } from "react";
 import {NotificationControls} from './extensions';
 import {VehicleMarks, FeatureFilters} from './marks';
+import JevAssistant from './JevAssistant';
 import {
   Link,
   useNavigate,
@@ -273,6 +274,29 @@ export function Investigations({
     setOffset(0);
     setParams({});
   };
+  // Jev's filters replace the whole description search, including area and time.
+  const applyJev = (f: any) => {
+    const value: Record<string, string> = Object.fromEntries(Object.keys(form).map((k) => [k, ""]));
+    const minutes = Number(f.time_window) || 0;
+    Object.assign(value, {
+      run_id: form.run_id,
+      radius_km: "1.5",
+      vehicle_type: f.vehicle_type || "",
+      color: f.color || "",
+      size_class: f.size_class || "",
+      make_model: f.make_model || "",
+      body_style: f.body_style || "",
+      feature_type: f.feature_type || "",
+      feature_part: f.feature_part || "",
+      area: f.region ? "region" : "",
+      region: f.region || "",
+      from: minutes ? istInput(clock - minutes * 60) : "",
+      to: minutes ? istInput(clock) : "",
+    });
+    setForm(value);
+    setApplied(value);
+    setOffset(0);
+  };
   const chooseMode = (next: "plate" | "description") => {
     clear();
     setMode(next);
@@ -319,6 +343,15 @@ export function Investigations({
         </button>
       </div>
       <div className="investigation-links"><Link to="/appearance" className="secondary">Distinctive appearance & missing plates <ArrowUpRight size={15}/></Link><Link to="/cases" className="text-button">Case workspace</Link></div>
+      {mode === "description" && (
+        <JevAssistant
+          endpoint="/jev/describe-vehicle"
+          title="Describe the vehicle to Jev"
+          placeholder="White Honda City with a sticker on the back glass, seen near Laxmi Nagar in the last hour"
+          open
+          onSearch={applyJev}
+        />
+      )}
       <form className="search-panel panel" onSubmit={submit}>
         {mode === "plate" ? (
           <div className="search-primary">

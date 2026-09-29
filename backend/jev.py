@@ -11,12 +11,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from .config import ROOT, RUNTIME
 from .auth import current_user
+from .geo import CAMERAS, REGIONS
+from .marks import CATEGORIES, PARTS
 
 router = APIRouter(prefix='/api/v1/jev')
 LEDGER = RUNTIME / 'jev-usage.db'
 MODEL = 'typesafe-ai/jev'
 ENDPOINT = 'https://ai-gateway.vercel.sh/typesafe/v1/systemone'
 VERSION = 'appearance-1'
+VEHICLE_VERSION = 'investigation-1'
 # Reservations deliberately exceed expected cost. Failed/uncertain calls consume a slot.
 RESERVATION = .005
 BUDGET = .10
@@ -51,6 +54,26 @@ def questions():
 
 QUESTIONS=questions()
 
+# Investigations → Vehicle description. Each field is a finite choice; answers map back by index.
+CAMERA_NAMES={c[0]:c[1] for c in CAMERAS}
+VEHICLE_FIELDS={
+    'vehicle_type':('Which vehicle type is explicitly described?',['car','motorcycle','bus','truck'],None),
+    'color':('Which main body color is explicitly described?',['white','silver','black','blue','red'],None),
+    'size_class':('Which vehicle size is explicitly described?',['compact','mid-size','large','two-wheeler'],None),
+    'make_model':('Which make or model is explicitly named?',
+                  ['Maruti Suzuki Swift','Honda City','Hyundai Creta','Tata Nexon','Maruti Suzuki Dzire',
+                   'Bajaj Pulsar','TVS Apache','Tata Starbus','Ashok Leyland Partner'],None),
+    'body_style':('Which body style is explicitly described?',['sedan','hatchback','SUV','motorcycle','city bus','goods carrier'],None),
+    'feature_type':('Which visible abnormal feature is explicitly described on the vehicle, such as a sticker, decal, cracked glass, broken part, dent or scratch?',CATEGORIES,None),
+    'feature_part':('Where on the vehicle is that visible feature explicitly described?',PARTS,None),
+    'region':('In which area of Delhi is the vehicle explicitly described as seen?',[r['id'] for r in REGIONS],
+              [r['name']+' (near '+', '.join(CAMERA_NAMES[c] for c in r['cameras'])+')' for r in REGIONS]),
+    'time_window':('How recently is the vehicle explicitly described as seen?',[15,60,180],
+                   ['Within the last 15 minutes','Within the last hour','Within the last few hours']),
+}
+VEHICLE_QUESTIONS={name:choice(instruction,{str(i):(labels or values)[i] for i in range(len(values))})
+                   for name,(instruction,values,labels) in VEHICLE_FIELDS.items()}
+
 def key():
     value=os.environ.get('AI_GATEWAY_API_KEY','').strip()
     if not value:
@@ -83,23 +106,28 @@ def status(user=Depends(current_user)):
 class Description(BaseModel):
     text:str=Field(min_length=5,max_length=600)
 
-def classify(text, credential):
+def classify(text, credential, questions=QUESTIONS):
     # No retries or alternate providers. Never return provider errors, headers or keys.
     response=httpx.post(ENDPOINT,headers={'Authorization':'Bearer '+credential},
-                        json={'model':MODEL,'state':text,'questions':QUESTIONS},timeout=15)
+                        json={'model':MODEL,'state':text,'questions':questions},timeout=15)
     response.raise_for_status()
     return response.json()
 
-def safe_result(data):
+def accepted_answers(data,questions):
     answers=data.get('answers',{})
     if not isinstance(answers,dict) or not answers:raise ValueError('Missing answers')
     values={}
-    for name,question in QUESTIONS.items():
+    for name,question in questions.items():
         answer=answers.get(name,{})
+        if not isinstance(answer,dict):continue
         selected=answer.get('choice')
         confidence=answer.get('confidence',0)
         if selected in question['criteria'] and selected!='unknown' and isinstance(confidence,(int,float)) and .65<=confidence<=1:
             values[name]=selected
+    return values
+
+def safe_result(data):
+    values=accepted_answers(data,QUESTIONS)
     filters={'colors':[c for c in COLORS if values.get('color_'+c)=='yes'],
              'features':[f for f in ['roof rack','left bumper dent'] if values.get(f.replace(' ','_'))=='yes']}
     for name in ['vehicle_type','pattern','visibility','plate_visibility','make_model']:
@@ -109,10 +137,30 @@ def safe_result(data):
     return {'filters':filters,'source':'Jev text suggestions','model':MODEL,
             'notice':'Review these suggestions before searching. They are not observed evidence or identity confidence.'}
 
+def vehicle_result(data):
+    values=accepted_answers(data,VEHICLE_QUESTIONS)
+    filters={name:VEHICLE_FIELDS[name][1][int(values[name])] for name in values}
+    # A location alone is not a feature; keep it only alongside a feature type.
+    if 'feature_type' not in filters:filters.pop('feature_part',None)
+    region=next((r for r in REGIONS if r['id']==filters.get('region')),None)
+    summary=[filters[k] for k in ['color','vehicle_type','size_class','make_model','body_style'] if k in filters]
+    if 'feature_type' in filters:summary.append(filters['feature_type']+(' on '+filters['feature_part'] if 'feature_part' in filters else ''))
+    if region:summary.append(region['name'])
+    if 'time_window' in filters:summary.append({15:'last 15 minutes',60:'last hour',180:'last 3 hours'}[filters['time_window']])
+    return {'filters':filters,'summary':summary,'source':'Jev text suggestions','model':MODEL,
+            'notice':'Review these suggestions before searching. They are not observed evidence or identity confidence.'}
+
 @router.post('/describe')
 def describe(body:Description,user=Depends(current_user)):
-    text=' '.join(body.text.split())
-    digest=hashlib.sha256((VERSION+'\n'+text.casefold()).encode()).hexdigest()
+    return interpret(body.text,user,VERSION,QUESTIONS,safe_result)
+
+@router.post('/describe-vehicle')
+def describe_vehicle(body:Description,user=Depends(current_user)):
+    return interpret(body.text,user,VEHICLE_VERSION,VEHICLE_QUESTIONS,vehicle_result)
+
+def interpret(text,user,version,questions,parse):
+    text=' '.join(text.split())
+    digest=hashlib.sha256((version+'\n'+text.casefold()).encode()).hexdigest()
     credential=key()
     with ledger() as conn:
         # SQLite serializes reservations across tabs AND server processes.
@@ -129,8 +177,8 @@ def describe(body:Description,user=Depends(current_user)):
                      (digest,time.time(),user['id'],'pending',None,RESERVATION,None,None))
         conn.commit()
     try:
-        data=classify(text,credential)
-        result=safe_result(data)
+        data=classify(text,credential,questions)
+        result=parse(data)
         metadata=data.get('provider_metadata',{}).get('gateway',{})
         reported=metadata.get('cost')
         actual=float(reported) if reported is not None else None
